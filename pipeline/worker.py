@@ -62,6 +62,20 @@ def parse_line_coverage(stdout: str, service_file_name: str) -> Optional[float]:
     return None
 
 
+def sanitize_mock_types(spec_text: str) -> str:
+    """Enforces 'let <dep>: any;' for mock dependencies while preserving SUT type."""
+    def _repl(m):
+        v = m.group(1)
+        if v.lower() in ("service", "sut"):
+            return m.group(0)
+        return f"let {v}: any;"
+    return re.sub(
+        r'let\s+([a-zA-Z0-9_]+)\s*:\s*(?:Repository<[^>]+>|(?:jest\.)?Mocked<[^;]+>|[A-Z][a-zA-Z0-9_]+);',
+        _repl,
+        spec_text,
+    )
+
+
 class TaskWorker:
     def __init__(
         self,
@@ -173,8 +187,15 @@ class TaskWorker:
             duration = time.time() - start_time
             print(f"Aider finished in {duration:.1f}s (Exit code: {ret_code})")
 
-            # Deterministic Mechanical Formatter (Zero-AI)
+            # Deterministic Mechanical Sanitizer & Formatter (Zero-AI)
             if spec_file_path.exists():
+                try:
+                    raw_spec = spec_file_path.read_text(encoding="utf-8")
+                    cleaned_spec = sanitize_mock_types(raw_spec)
+                    if cleaned_spec != raw_spec:
+                        spec_file_path.write_text(cleaned_spec, encoding="utf-8")
+                except Exception:
+                    pass
                 self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
 
             # Guardrail 1: Immutability of Production Code

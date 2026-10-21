@@ -30,9 +30,12 @@ PRINCIPIOS FUNDAMENTAIS DE TESTE (VLADIMIR KHORIKOV - "UNIT TESTING"):
    - Ao mockar retornos de DTOs ou entidades complexas (ex: `classifyTattoo`, `findOne`), use SEMPRE casting com `as any` no objeto de fixture (ex: `.mockResolvedValue({{ bodyPartId: '123', sizeId: '456' }} as any)` ou `mockTattoo as any`). NUNCA tente instanciar todos os campos estritos de interfaces ou DTOs, pois o TypeScript falhará por propriedades faltantes.
 
 
-6. PRESERVAÇÃO DOS MOCKS DO SCAFFOLD:
-   - NUNCA altere as declarações `let <dependencia>: any;` para tipos de classe específicos. O tipo DEVE ser mantido como `any` para evitar erros de compilação com propriedades privadas do TypeScript.
+6. PRESERVAÇÃO DOS MOCKS DO SCAFFOLD (REGRA ANTI-QUEBRA DE TIPOS):
+   - NUNCA altere as declarações `let <dependencia>: any;` para tipos de classe específicos ou `jest.Mocked<...>`. O tipo DEVE ser mantido como `any` (ex: `let createTattooDetailsService: any;`) para evitar erros de compilação com propriedades privadas do TypeScript.
+   - NUNCA declare `jest.Mocked<TipoDoServico>`. O uso de `any` para variáveis de dependências mockadas é OBRIGATÓRIO.
    - Todos os métodos de colaboradores chamados pelo serviço (ex: `.create`, `._getPresignedUrl`, `.classifyTattoo`) JÁ FORAM inicializados com `jest.fn()` no `beforeEach`. Use-os diretamente nos testes sem recriar os objetos!
+   - NÃO REESCREVA o bloco `beforeEach` nem as declarações `let` do scaffold. Adicione EXCLUSIVAMENTE os blocos `it(...)` dentro de `describe(...)`.
+
 
 
 ================================================================================
