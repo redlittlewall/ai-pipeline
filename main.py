@@ -35,7 +35,7 @@ def main():
     run_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
     run_parser.add_argument("--limit", type=int, default=None, help="Maximum number of tasks to process in this run")
     run_parser.add_argument("--model", default="ollama/qwen2.5:14b", help="Ollama model to use")
-    run_parser.add_argument("--timeout", type=int, default=240, help="Per-task timeout in seconds")
+    run_parser.add_argument("--timeout", type=int, default=360, help="Per-task timeout in seconds")
 
     # Command: status
     status_parser = subparsers.add_parser("status", help="Show current queue status")

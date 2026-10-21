@@ -66,7 +66,7 @@ class TaskWorker:
     def __init__(
         self,
         model: str = "ollama/qwen2.5:14b",
-        timeout_seconds: int = 240,
+        timeout_seconds: int = 360,
         min_line_coverage: float = 60.0,
     ):
         self.model = model
@@ -115,16 +115,18 @@ class TaskWorker:
         initial_service_hash = get_file_hash(service_file_path)
 
         # Deterministic Scaffolding (Zero-AI Boilerplate Generation)
-        if profile.name == "nestjs" and not spec_file_path.exists():
-            print(f"⚡ [ZERO-AI] Generating deterministic test scaffold with mocked providers...")
+        initial_scaffold = None
+        if profile.name == "nestjs":
             try:
                 from pipeline.scaffolder import NestJSScaffolder
                 scaffolder = NestJSScaffolder()
                 service_code = service_file_path.read_text(encoding="utf-8")
-                scaffold_code = scaffolder.generate_scaffold(service_file_path, service_code)
-                spec_file_path.parent.mkdir(parents=True, exist_ok=True)
-                spec_file_path.write_text(scaffold_code, encoding="utf-8")
-                print(f"⚡ [ZERO-AI] Scaffold ready at {task.spec_file}")
+                initial_scaffold = scaffolder.generate_scaffold(service_file_path, service_code)
+                if not spec_file_path.exists() or spec_file_path.stat().st_size < 150:
+                    print(f"⚡ [ZERO-AI] Generating deterministic test scaffold with mocked providers...")
+                    spec_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    spec_file_path.write_text(initial_scaffold, encoding="utf-8")
+                    print(f"⚡ [ZERO-AI] Scaffold ready at {task.spec_file}")
             except Exception as e:
                 print(f"Notice: Deterministic scaffolding skipped ({e})")
 
@@ -143,6 +145,12 @@ class TaskWorker:
 
         for attempt in range(1, task.max_attempts + 1):
             print(f"--- Attempt {attempt}/{task.max_attempts} for {task.id} ---")
+
+            # Self-healing safeguard: if spec file is truncated or corrupt (< 150 bytes), restore clean scaffold
+            if initial_scaffold and (not spec_file_path.exists() or spec_file_path.stat().st_size < 150):
+                print(f"⚡ [RESTORE] Restoring clean deterministic scaffold before attempt {attempt}...")
+                spec_file_path.write_text(initial_scaffold, encoding="utf-8")
+
 
             aider_cmd = [
                 "aider",

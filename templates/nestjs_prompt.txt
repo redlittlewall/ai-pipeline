@@ -24,6 +24,12 @@ PRINCIPIOS FUNDAMENTAIS DE TESTE (VLADIMIR KHORIKOV - "UNIT TESTING"):
    - Cenário de Sucesso (Happy Path): Quando todos os colaboradores retornam dados válidos, a lógica do método deve ser executada até o fim e retornar o resultado correto.
    - Cenários de Falha / Exceções (Sad Path): Quando um colaborador retorna `null` ou falha, verifique que o serviço lança a exceção esperada com `await expect(service.metodo(...)).rejects.toThrow(NomeDaExcecao);`.
 
+5. REGRAS CRÍTICAS DE TYPESCRIPT / JEST:
+   - Em TypeScript estrito, NUNCA chame `.mockResolvedValue()` sem argumentos. Se a função retornar void ou undefined, passe explicitamente: `.mockResolvedValue(undefined)` ou `.mockResolvedValue(null)`.
+   - Para repositórios do TypeORM, mocke `.findOne.mockResolvedValue(null)` para cenários de não encontrado e `.find.mockResolvedValue([])` para listas vazias.
+   - Mantenha estritamente os tipos e contratos das entidades e DTOs.
+
+
 ================================================================================
 EXEMPLO DE REFERÊNCIA (PADRÃO DE OURO DO PROJETO):
 ================================================================================
