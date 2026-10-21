@@ -21,6 +21,8 @@ PRINCIPIOS FUNDAMENTAIS DE TESTE (VLADIMIR KHORIKOV - "UNIT TESTING"):
    - // Then (Assert): Verifique o resultado retornado E certifique-se de que as dependências foram chamadas com os parâmetros corretos (`expect(tattooRepository.findOne).toHaveBeenCalledWith(...)`).
 
 4. CENÁRIOS OBRIGATÓRIOS PARA CADA MÉTODO PÚBLICO:
+   - O scaffold inicial já possui blocos `describe('<metodo>', () => {{ ... }})` para TODOS os métodos da classe.
+   - Você DEVE obrigatoriamente preencher TODOS os blocos `describe` com testes `it(...)`. NUNCA deixe blocos `describe` vazios com apenas comentários TODO, caso contrário a cobertura falhará a meta de 60%!
    - Cenário de Sucesso (Happy Path): Quando todos os colaboradores retornam dados válidos, a lógica do método deve ser executada até o fim e retornar o resultado correto.
    - Cenários de Falha / Exceções (Sad Path): Quando um colaborador retorna `null` ou falha, verifique que o serviço lança a exceção esperada com `await expect(service.metodo(...)).rejects.toThrow(NomeDaExcecao);`.
 
@@ -51,4 +53,4 @@ INFORMAÇÃO DO SERVIÇO A TESTAR:
 Arquivo do Serviço: `{service_file}`
 Arquivo de Teste a Criar: `{spec_file}`
 
-Escreva o teste completo em `{spec_file}` aplicando Given-When-Then, cobrindo o fluxo real e garantindo que `npx jest --config jest.config.json {spec_file}` passe com 100% de sucesso e cobertura real de código.
+Escreva o teste completo em `{spec_file}` aplicando Given-When-Then, cobrindo o fluxo real e garantindo que todos os testes passem no Jest com 100% de sucesso e cobertura real de código.

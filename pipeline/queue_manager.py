@@ -15,7 +15,7 @@ class Task:
     profile: str = "nestjs"  # nestjs, flutter, svelte
     status: str = "pending"  # pending, in_progress, completed, failed
     attempts: int = 0
-    max_attempts: int = 3
+    max_attempts: int = 5
     error_log: Optional[str] = None
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -97,3 +97,18 @@ class QueueManager:
         for task in tasks:
             summary[task.status] = summary.get(task.status, 0) + 1
         return summary
+
+    def reset_failed_tasks(self) -> int:
+        tasks = self.load_queue()
+        reset_count = 0
+        for task in tasks:
+            if task.status == "failed":
+                task.status = "pending"
+                task.attempts = 0
+                task.error_log = None
+                task.max_attempts = 5
+                task.updated_at = datetime.now(timezone.utc).isoformat()
+                reset_count += 1
+        if reset_count > 0:
+            self.save_queue(tasks)
+        return reset_count

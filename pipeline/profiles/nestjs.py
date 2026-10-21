@@ -34,11 +34,27 @@ class NestJSProfile(ProjectProfile):
         return base_dir / "templates" / "nestjs_prompt.txt"
 
     def get_golden_template(self, project_path: Path) -> str:
-        golden_path = project_path / "src" / "modules" / "configurations" / "Configurations.service.spec.ts"
-        if golden_path.exists():
-            with open(golden_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return "// Golden reference template not found."
+        return """  describe('exampleMethod', () => {
+    it('should execute successfully and return result (Happy Path)', async () => {
+      // Given (Arrange)
+      repo.findOne.mockResolvedValue({ id: '123' } as any);
+
+      // When (Act)
+      const result = await service.exampleMethod('123');
+
+      // Then (Assert)
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: '123' } });
+      expect(result).toBeDefined();
+    });
+
+    it('should throw exception when entity is not found (Sad Path)', async () => {
+      // Given (Arrange)
+      repo.findOne.mockResolvedValue(null);
+
+      // When & Then (Act & Assert)
+      await expect(service.exampleMethod('invalid-id')).rejects.toThrow();
+    });
+  });"""
 
     def get_service_file_pattern(self) -> re.Pattern:
         return re.compile(r"^(.+)[._]service\.ts$", re.IGNORECASE)

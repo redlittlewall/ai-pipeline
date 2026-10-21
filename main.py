@@ -36,6 +36,11 @@ def main():
     run_parser.add_argument("--limit", type=int, default=None, help="Maximum number of tasks to process in this run")
     run_parser.add_argument("--model", default="ollama/qwen2.5:14b", help="Ollama model to use")
     run_parser.add_argument("--timeout", type=int, default=360, help="Per-task timeout in seconds")
+    run_parser.add_argument("--retry-failed", action="store_true", help="Reset all failed tasks to pending before running")
+
+    # Command: retry-failed
+    retry_parser = subparsers.add_parser("retry-failed", help="Reset all failed tasks to pending")
+    retry_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
 
     # Command: status
     status_parser = subparsers.add_parser("status", help="Show current queue status")
@@ -57,9 +62,18 @@ def main():
 
     elif args.command == "run":
         qm = QueueManager(Path(args.queue_file))
+        if args.retry_failed:
+            reset_count = qm.reset_failed_tasks()
+            print(f"🔄 Reset {reset_count} failed tasks to pending.")
         worker = TaskWorker(model=args.model, timeout_seconds=args.timeout)
         runner = BatchRunner(queue_manager=qm, worker=worker)
         runner.run_batch(max_tasks=args.limit)
+
+    elif args.command == "retry-failed":
+        qm = QueueManager(Path(args.queue_file))
+        reset_count = qm.reset_failed_tasks()
+        print(f"🔄 Reset {reset_count} failed tasks to pending.")
+        print(f"Queue Status ({args.queue_file}): {qm.get_summary()}")
 
     elif args.command == "status":
         qm = QueueManager(Path(args.queue_file))
