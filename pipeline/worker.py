@@ -90,6 +90,12 @@ class TaskWorker:
     def run_command(self, cmd: list, cwd: Path, timeout: Optional[int] = None) -> Tuple[int, str, str]:
         env = os.environ.copy()
         env["OLLAMA_NUM_CTX"] = "8192"
+        env_file = Path(__file__).resolve().parent.parent / ".env"
+        if env_file.exists():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                if "=" in line and not line.strip().startswith("#"):
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip()
         try:
             result = subprocess.run(
                 cmd,
