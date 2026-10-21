@@ -17,7 +17,7 @@ class ProjectProfile(ABC):
         pass
 
     @abstractmethod
-    def get_test_command(self, spec_file: str) -> List[str]:
+    def get_test_command(self, spec_file: str, service_file: Optional[str] = None) -> List[str]:
         """Returns the command list to run test verification on a specific test file."""
         pass
 

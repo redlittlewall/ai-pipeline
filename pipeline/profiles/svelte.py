@@ -24,7 +24,7 @@ class SvelteProfile(ProjectProfile):
                 pass
         return False
 
-    def get_test_command(self, spec_file: str) -> List[str]:
+    def get_test_command(self, spec_file: str, service_file: Optional[str] = None) -> List[str]:
         return ["npx", "vitest", "run", spec_file]
 
     def get_prompt_template_path(self) -> Path:

@@ -13,7 +13,7 @@ class FlutterProfile(ProjectProfile):
         pubspec = project_path / "pubspec.yaml"
         return pubspec.exists()
 
-    def get_test_command(self, spec_file: str) -> List[str]:
+    def get_test_command(self, spec_file: str, service_file: Optional[str] = None) -> List[str]:
         return ["flutter", "test", spec_file]
 
     def get_prompt_template_path(self) -> Path:

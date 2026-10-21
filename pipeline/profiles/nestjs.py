@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import re
-from typing import List
+from typing import List, Optional
 from pipeline.profiles.base_profile import ProjectProfile
 
 
@@ -22,8 +22,12 @@ class NestJSProfile(ProjectProfile):
         except Exception:
             return False
 
-    def get_test_command(self, spec_file: str) -> List[str]:
-        return ["npx", "jest", "--config", "jest.config.json", spec_file]
+    def get_test_command(self, spec_file: str, service_file: Optional[str] = None) -> List[str]:
+        cmd = ["npx", "jest", "--config", "jest.config.json"]
+        if service_file:
+            cmd.extend(["--coverage", f"--collectCoverageFrom={service_file}"])
+        cmd.append(spec_file)
+        return cmd
 
     def get_prompt_template_path(self) -> Path:
         base_dir = Path(__file__).parent.parent.parent
