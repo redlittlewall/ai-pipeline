@@ -160,6 +160,9 @@ class TaskWorker:
                 "--message", current_prompt,
                 "--yes",
                 "--no-auto-commits",
+                "--no-show-model-warnings",
+                "--no-attribute-author",
+                "--no-attribute-committer",
             ]
 
             print(f"Calling Aider with model: {self.model}...")
