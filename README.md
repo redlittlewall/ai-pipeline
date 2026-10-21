@@ -45,18 +45,32 @@ python3 main.py run
 
 ---
 
+## 🧩 Multi-Framework Profile Support
+
+The pipeline dynamically adapts to any target project framework using **Profiles** with auto-detection:
+- **`nestjs`** (Auto-detected if `package.json` contains `@nestjs`): Uses Jest (`npx jest --config jest.config.json`), NestJS testing modules, TypeORM mocks, and `.spec.ts` files.
+- **`flutter`** (Auto-detected if `pubspec.yaml` exists): Uses Flutter test (`flutter test`), `package:test` / `mocktail`, and `_test.dart` files.
+- **`svelte`** (Auto-detected if `svelte.config.js` exists): Uses Vitest (`npx vitest run`), store/API mocks, and `.test.ts` files.
+
+You can also explicitly pass `--profile [nestjs|flutter|svelte]` to override detection:
+```bash
+python3 main.py scan --target /path/to/project --profile nestjs
+```
+
+---
+
 ## 📊 Project Structure
 
 ```text
 ai-pipeline/
 ├── main.py                 # Main CLI entrypoint
 ├── pipeline/
+│   ├── profiles/           # Framework profiles (nestjs, flutter, svelte)
 │   ├── queue_manager.py    # Queue persistence & state machine (queue.json)
 │   ├── scanner.py          # Untested service discovery & domain filtering
-│   ├── worker.py           # Single-task worker harness (Aider + Jest + Anti-Cheat)
+│   ├── worker.py           # Single-task worker harness (Aider + Quality Gate + Anti-Cheat)
 │   └── runner.py           # Batch orchestrator & Markdown report writer
-├── templates/
-│   └── nestjs_prompt.txt   # Prompt with golden reference template injection
+├── templates/              # Framework-specific prompt templates
 ├── reports/                # Consolidated execution reports
 └── tests/                  # Unit test suite for the pipeline itself
 ```

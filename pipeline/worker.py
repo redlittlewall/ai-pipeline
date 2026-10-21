@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import time
 from typing import Optional, Tuple
+from pipeline.profiles.registry import registry
 from pipeline.queue_manager import QueueManager, Task
 
 
@@ -22,23 +23,9 @@ class TaskWorker:
         self,
         model: str = "ollama/qwen2.5:14b",
         timeout_seconds: int = 240,
-        prompt_template_path: Optional[Path] = None,
     ):
         self.model = model
         self.timeout_seconds = timeout_seconds
-        base_dir = Path(__file__).parent.parent
-        self.prompt_template_path = prompt_template_path or (base_dir / "templates" / "nestjs_prompt.txt")
-
-    def _load_prompt_template(self) -> str:
-        with open(self.prompt_template_path, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def _load_golden_template(self, project_path: Path) -> str:
-        golden_path = project_path / "src" / "modules" / "configurations" / "Configurations.service.spec.ts"
-        if golden_path.exists():
-            with open(golden_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return "// Golden reference template not found."
 
     def run_command(self, cmd: list, cwd: Path, timeout: Optional[int] = None) -> Tuple[int, str, str]:
         env = os.environ.copy()
@@ -65,14 +52,18 @@ class TaskWorker:
         service_file_path = project_path / task.service_file
         spec_file_path = project_path / task.spec_file
 
+        # Resolve project profile (e.g. nestjs, flutter, svelte)
+        profile = registry.get_profile_by_name(task.profile) or registry.detect_profile(project_path)
+
         print(f"\n=======================================================")
         print(f"[{task.id}] Processing: {task.service_file}")
         print(f"Target Spec: {task.spec_file}")
+        print(f"Framework Profile: {profile.name}")
         print(f"Module: {task.module_name}")
         print(f"=======================================================")
 
         if not service_file_path.exists():
-            error_msg = f"Service file not found: {service_file_path}"
+            error_msg = f"Source file not found: {service_file_path}"
             print(f"ERROR: {error_msg}")
             queue_manager.update_task_status(task.id, "failed", error_log=error_msg)
             return False
@@ -80,9 +71,11 @@ class TaskWorker:
         # Anti-Cheat: Record initial service hash
         initial_service_hash = get_file_hash(service_file_path)
 
-        # Load templates
-        golden_template = self._load_golden_template(project_path)
-        prompt_template = self._load_prompt_template()
+        # Load profile-specific templates
+        golden_template = profile.get_golden_template(project_path)
+        prompt_template_path = profile.get_prompt_template_path()
+        with open(prompt_template_path, "r", encoding="utf-8") as f:
+            prompt_template = f.read()
 
         current_prompt = prompt_template.format(
             service_file=task.service_file,
@@ -115,15 +108,15 @@ class TaskWorker:
             # Guardrail: Verify production service file was NOT modified
             current_service_hash = get_file_hash(service_file_path)
             if current_service_hash != initial_service_hash:
-                print("⚠️ [ANTI-CHEAT GUARDRAIL TRIGGERED] Production service file was modified! Reverting immediately...")
+                print("⚠️ [ANTI-CHEAT GUARDRAIL TRIGGERED] Production source file was modified! Reverting immediately...")
                 self.run_command(["git", "checkout", "--", task.service_file], cwd=project_path)
 
-            # Quality Gate: Run Jest on the target spec file
-            print(f"Running Jest verification on: {task.spec_file}...")
-            jest_cmd = ["npx", "jest", "--config", "jest.config.json", task.spec_file]
-            jest_code, jest_stdout, jest_stderr = self.run_command(jest_cmd, cwd=project_path, timeout=60)
+            # Quality Gate: Run native framework test runner
+            test_cmd = profile.get_test_command(task.spec_file)
+            print(f"Running test verification via {profile.name} ({' '.join(test_cmd)})...")
+            test_code, test_stdout, test_stderr = self.run_command(test_cmd, cwd=project_path, timeout=60)
 
-            if jest_code == 0:
+            if test_code == 0:
                 print(f"✅ SUCCESS! All unit tests passed for {task.service_file}")
 
                 # Commit change to git
@@ -134,7 +127,7 @@ class TaskWorker:
                 queue_manager.update_task_status(task.id, "completed", increment_attempt=True)
                 return True
             else:
-                error_traceback = (jest_stdout + "\n" + jest_stderr).strip()
+                error_traceback = (test_stdout + "\n" + test_stderr).strip()
                 print(f"❌ Test verification failed on attempt {attempt}.")
                 print(f"Error summary:\n{error_traceback[-500:]}\n")
 
@@ -147,7 +140,7 @@ class TaskWorker:
 
                 # Formulate feedback for next attempt
                 current_prompt = (
-                    f"O teste unitário em `{task.spec_file}` falhou com o seguinte erro do Jest:\n\n"
+                    f"O teste unitário em `{task.spec_file}` falhou com o seguinte erro:\n\n"
                     f"```\n{error_traceback[-1500:]}\n```\n\n"
                     f"Por favor, ajuste EXCLUSIVAMENTE o arquivo `{task.spec_file}` para corrigir os mocks ou asserções e fazer todos os testes passarem. "
                     f"Lembre-se: NÃO modifique `{task.service_file}`."

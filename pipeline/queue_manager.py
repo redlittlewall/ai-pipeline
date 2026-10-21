@@ -12,6 +12,7 @@ class Task:
     service_file: str
     spec_file: str
     module_name: str
+    profile: str = "nestjs"  # nestjs, flutter, svelte
     status: str = "pending"  # pending, in_progress, completed, failed
     attempts: int = 0
     max_attempts: int = 3
@@ -24,6 +25,9 @@ class Task:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Task":
+        # Handle backward compatibility if profile is missing
+        if "profile" not in data:
+            data["profile"] = "nestjs"
         return cls(**data)
 
 

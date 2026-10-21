@@ -17,6 +17,12 @@ def main():
     scan_parser = subparsers.add_parser("scan", help="Scan target project and populate queue")
     scan_parser.add_argument("--target", required=True, help="Path to target project (e.g. /path/to/tattoopop-api)")
     scan_parser.add_argument(
+        "--profile",
+        choices=["nestjs", "flutter", "svelte"],
+        default=None,
+        help="Framework profile (auto-detected if omitted)",
+    )
+    scan_parser.add_argument(
         "--domain",
         choices=["core", "all"],
         default="core",
@@ -38,12 +44,13 @@ def main():
     args = parser.parse_args()
 
     if args.command == "scan":
-        scanner = ProjectScanner(Path(args.target))
+        scanner = ProjectScanner(Path(args.target), profile_name=args.profile)
         domains = CORE_DOMAINS if args.domain == "core" else None
         tasks = scanner.scan_services(domain_filter=domains)
         qm = QueueManager(Path(args.queue_file))
         added = qm.add_tasks(tasks)
         print(f"✅ Scanned project at: {args.target}")
+        print(f"Framework Profile: {scanner.profile.name}")
         print(f"Found {len(tasks)} untested services in '{args.domain}' domain.")
         print(f"Added {added} new tasks to {args.queue_file}.")
         print(f"Current Queue Status: {qm.get_summary()}")
