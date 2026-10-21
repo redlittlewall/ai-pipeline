@@ -70,6 +70,7 @@ class TestTaskWorker(unittest.TestCase):
 
         mock_run_command.side_effect = [
             (0, "Aider success", ""),        # Aider execution
+            (0, "Prettier success", ""),     # Prettier formatting
             (0, coverage_output, ""),        # Jest with coverage >= 50%
             (0, "", ""),                     # git add
             (0, "", ""),                     # git commit

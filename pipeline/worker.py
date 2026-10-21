@@ -114,6 +114,20 @@ class TaskWorker:
 
         initial_service_hash = get_file_hash(service_file_path)
 
+        # Deterministic Scaffolding (Zero-AI Boilerplate Generation)
+        if profile.name == "nestjs" and not spec_file_path.exists():
+            print(f"⚡ [ZERO-AI] Generating deterministic test scaffold with mocked providers...")
+            try:
+                from pipeline.scaffolder import NestJSScaffolder
+                scaffolder = NestJSScaffolder()
+                service_code = service_file_path.read_text(encoding="utf-8")
+                scaffold_code = scaffolder.generate_scaffold(service_file_path, service_code)
+                spec_file_path.parent.mkdir(parents=True, exist_ok=True)
+                spec_file_path.write_text(scaffold_code, encoding="utf-8")
+                print(f"⚡ [ZERO-AI] Scaffold ready at {task.spec_file}")
+            except Exception as e:
+                print(f"Notice: Deterministic scaffolding skipped ({e})")
+
         golden_template = profile.get_golden_template(project_path)
         prompt_template_path = profile.get_prompt_template_path()
         with open(prompt_template_path, "r", encoding="utf-8") as f:
@@ -145,6 +159,10 @@ class TaskWorker:
             ret_code, stdout, stderr = self.run_command(aider_cmd, cwd=project_path)
             duration = time.time() - start_time
             print(f"Aider finished in {duration:.1f}s (Exit code: {ret_code})")
+
+            # Deterministic Mechanical Formatter (Zero-AI)
+            if spec_file_path.exists():
+                self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
 
             # Guardrail 1: Immutability of Production Code
             current_service_hash = get_file_hash(service_file_path)
