@@ -82,6 +82,7 @@ class TaskWorker:
                 cwd=str(cwd),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 timeout=timeout or self.timeout_seconds,
                 env=env,
@@ -163,6 +164,7 @@ class TaskWorker:
                 "--no-show-model-warnings",
                 "--no-attribute-author",
                 "--no-attribute-committer",
+                "--map-tokens", "0",
             ]
 
             print(f"Calling Aider with model: {self.model}...")

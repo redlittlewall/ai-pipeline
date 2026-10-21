@@ -27,7 +27,8 @@ PRINCIPIOS FUNDAMENTAIS DE TESTE (VLADIMIR KHORIKOV - "UNIT TESTING"):
 5. REGRAS CRÍTICAS DE TYPESCRIPT / JEST:
    - Em TypeScript estrito, NUNCA chame `.mockResolvedValue()` sem argumentos. Se a função retornar void ou undefined, passe explicitamente: `.mockResolvedValue(undefined)` ou `.mockResolvedValue(null)`.
    - Para repositórios do TypeORM, mocke `.findOne.mockResolvedValue(null)` para cenários de não encontrado e `.find.mockResolvedValue([])` para listas vazias.
-   - Mantenha estritamente os tipos e contratos das entidades e DTOs.
+   - Ao mockar retornos de DTOs ou entidades complexas (ex: `classifyTattoo`, `findOne`), use SEMPRE casting com `as any` no objeto de fixture (ex: `.mockResolvedValue({{ bodyPartId: '123', sizeId: '456' }} as any)` ou `mockTattoo as any`). NUNCA tente instanciar todos os campos estritos de interfaces ou DTOs, pois o TypeScript falhará por propriedades faltantes.
+
 
 6. PRESERVAÇÃO DOS MOCKS DO SCAFFOLD:
    - NUNCA altere as declarações `let <dependencia>: any;` para tipos de classe específicos. O tipo DEVE ser mantido como `any` para evitar erros de compilação com propriedades privadas do TypeScript.
