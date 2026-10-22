@@ -69,6 +69,22 @@ class ProjectScanner:
             if expected_spec.exists() or legacy_spec_in_test.exists():
                 continue
 
+            # Skip dead or completely commented-out files
+            try:
+                raw_code = file_path.read_text(encoding="utf-8")
+                uncommented = re.sub(r"/\*[\s\S]*?\*/", "", raw_code)
+                uncommented_lines = [
+                    line for line in uncommented.splitlines()
+                    if line.strip() and not line.strip().startswith("//")
+                ]
+                active_code = "\n".join(uncommented_lines)
+                if self.profile.name != "flutter" and "export class" not in active_code:
+                    continue
+                if not active_code.strip():
+                    continue
+            except Exception:
+                pass
+
             task_id = f"TASK-{task_counter:03d}"
             task_counter += 1
 

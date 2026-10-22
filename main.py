@@ -34,7 +34,7 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run batch test generation worker")
     run_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
     run_parser.add_argument("--limit", type=int, default=None, help="Maximum number of tasks to process in this run")
-    run_parser.add_argument("--model", default="ollama/qwen2.5:14b", help="Ollama model to use")
+    run_parser.add_argument("--model", default="ollama/qwen2.5-coder:14b", help="Model to use (e.g. groq/openai/gpt-oss-120b or ollama/qwen2.5-coder:14b)")
     run_parser.add_argument("--timeout", type=int, default=360, help="Per-task timeout in seconds")
     run_parser.add_argument("--retry-failed", action="store_true", help="Reset all failed tasks to pending before running")
 

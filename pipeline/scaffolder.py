@@ -107,6 +107,30 @@ class NestJSScaffolder:
         mock_assignments = []
         providers_list = [f"        {class_name},"]
 
+        has_repos = any(d["is_repository"] for d in dependencies)
+        if has_repos:
+            mock_assignments.extend([
+                "    const createQueryBuilderMock = () => {",
+                "      const qb: any = new Proxy({}, {",
+                "        get(target, prop) {",
+                "          if (prop === 'then') return undefined;",
+                "          if (!(prop in target)) {",
+                "            target[prop] = jest.fn().mockReturnValue(qb);",
+                "          }",
+                "          return target[prop];",
+                "        },",
+                "      });",
+                "      qb.getOne = jest.fn().mockResolvedValue(null);",
+                "      qb.getMany = jest.fn().mockResolvedValue([]);",
+                "      qb.getRawOne = jest.fn().mockResolvedValue(null);",
+                "      qb.getRawMany = jest.fn().mockResolvedValue([]);",
+                "      qb.getCount = jest.fn().mockResolvedValue(0);",
+                "      qb.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);",
+                "      qb.execute = jest.fn().mockResolvedValue({ affected: 1, raw: [] });",
+                "      return qb;",
+                "    };",
+            ])
+
         for dep in dependencies:
             p_name = dep["param_name"]
             let_declarations.append(f"  let {p_name}: any;")
@@ -114,36 +138,20 @@ class NestJSScaffolder:
             if dep["is_repository"]:
                 entity = dep["entity_name"]
                 mock_assignments.extend([
-                    f"    const {p_name}QueryBuilder: any = {{",
-                    f"      select: jest.fn().mockReturnThis(),",
-                    f"      addSelect: jest.fn().mockReturnThis(),",
-                    f"      innerJoin: jest.fn().mockReturnThis(),",
-                    f"      leftJoin: jest.fn().mockReturnThis(),",
-                    f"      where: jest.fn().mockReturnThis(),",
-                    f"      andWhere: jest.fn().mockReturnThis(),",
-                    f"      orWhere: jest.fn().mockReturnThis(),",
-                    f"      orderBy: jest.fn().mockReturnThis(),",
-                    f"      addOrderBy: jest.fn().mockReturnThis(),",
-                    f"      skip: jest.fn().mockReturnThis(),",
-                    f"      take: jest.fn().mockReturnThis(),",
-                    f"      limit: jest.fn().mockReturnThis(),",
-                    f"      offset: jest.fn().mockReturnThis(),",
-                    f"      groupBy: jest.fn().mockReturnThis(),",
-                    f"      getOne: jest.fn().mockResolvedValue(null),",
-                    f"      getMany: jest.fn().mockResolvedValue([]),",
-                    f"      getRawOne: jest.fn().mockResolvedValue(null),",
-                    f"      getRawMany: jest.fn().mockResolvedValue([]),",
-                    f"      getCount: jest.fn().mockResolvedValue(0),",
-                    f"      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),",
-                    f"      execute: jest.fn().mockResolvedValue([]),",
-                    f"    }};",
+                    f"    const {p_name}QueryBuilder = createQueryBuilderMock();",
                     f"    {p_name} = {{",
                     f"      findOne: jest.fn(),",
                     f"      find: jest.fn(),",
+                    f"      findAndCount: jest.fn(),",
                     f"      save: jest.fn(),",
                     f"      create: jest.fn(),",
                     f"      update: jest.fn(),",
                     f"      delete: jest.fn(),",
+                    f"      softDelete: jest.fn(),",
+                    f"      restore: jest.fn(),",
+                    f"      count: jest.fn(),",
+                    f"      exist: jest.fn(),",
+                    f"      remove: jest.fn(),",
                     f"      createQueryBuilder: jest.fn().mockReturnValue({p_name}QueryBuilder),",
                     f"    }};",
                 ])
@@ -212,3 +220,53 @@ describe('{class_name}', () => {{
 }});
 """
         return scaffold
+
+    def extract_imported_type_context(
+        self, project_path: Path, service_path: Path, service_code: str, max_total_chars: int = 2500
+    ) -> str:
+        """Extracts concise Enum and DTO definitions imported by the service to prevent LLM hallucination."""
+        parsed = self.parse_service(service_code)
+        imported_symbols = parsed["imported_symbols"]
+        src_root = project_path / "src"
+
+        snippets = []
+        total_chars = 0
+
+        seen_paths = set()
+        for sym, imp_path in imported_symbols.items():
+            if imp_path in seen_paths or imp_path.startswith("@") or imp_path == "typeorm":
+                continue
+            seen_paths.add(imp_path)
+
+            # Focus on Enums, DTOs, and custom Exceptions
+            is_relevant = any(
+                k in imp_path.lower() or k in sym.lower()
+                for k in ["enum", "dto", "exception", "interface", "type"]
+            )
+            if not is_relevant:
+                continue
+
+            candidate: Optional[Path] = None
+            if imp_path.startswith("."):
+                resolved = (service_path.parent / f"{imp_path}.ts").resolve()
+                if resolved.exists():
+                    candidate = resolved
+            else:
+                resolved = (src_root / f"{imp_path}.ts").resolve()
+                if resolved.exists():
+                    candidate = resolved
+
+            if candidate and candidate.is_file():
+                try:
+                    content = candidate.read_text(encoding="utf-8").strip()
+                    # Keep only compact files (< 1200 chars)
+                    if 0 < len(content) <= 1200 and (total_chars + len(content)) <= max_total_chars:
+                        snippets.append(f"// import path: '{imp_path}'\n{content}")
+                        total_chars += len(content)
+                except Exception:
+                    pass
+
+        if not snippets:
+            return ""
+        return "\n\nREFERÊNCIA REAL DE ENUMS E DTOS IMPORTADOS (Use exatamente estes tipos/chaves):\n```typescript\n" + "\n\n".join(snippets) + "\n```"
+

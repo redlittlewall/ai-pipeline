@@ -1,15 +1,15 @@
 # 🤖 Autonomous AI Testing Pipeline (`ai-pipeline`)
 
-An autonomous, local, and zero-cost code quality and test generation orchestrator for software projects. Powered by local LLMs via [Ollama](https://ollama.com/) (Qwen 2.5 14B) and [Aider](https://aider.chat/) on Apple Silicon.
+An autonomous, hybrid-cloud & local code quality and test generation orchestrator for software projects. Powered by Groq (`openai/gpt-oss-120b`), Gemini (`gemini-3.5-flash`), and local [Ollama](https://ollama.com/) (`qwen2.5-coder:14b`) with [Aider](https://aider.chat/) on Apple Silicon.
 
 ---
 
 ## ⚡ Core Principles & Guardrails
 
-1. **Zero Cloud API Costs & Complete Privacy:** Runs 100% locally on your Mac using Ollama with Metal GPU acceleration.
+1. **Zero Cloud API Costs & Complete Privacy:** Runs locally on your Mac using Ollama (`qwen2.5-coder:14b`) with Metal GPU acceleration, or hybrid cloud with instant failover (`Groq -> Gemini -> Ollama`).
 2. **Anti-Cheat Guardrail (Production Immutability):** Production service files (`*.service.ts`) are strictly read-only. If the AI modifies the production service to make tests pass, changes are instantly reverted via Git.
 3. **Quality Gate Verification:** No code is committed unless the native test runner (`jest`) executes and passes with 100% success.
-4. **Circuit Breaker:** Maximum 3 attempts per service with automatic traceback error feedback. Failed attempts are cleanly discarded.
+4. **Circuit Breaker & Quarantine Recovery:** Maximum 5 attempts per service with automatic traceback error feedback, quarantine rehydration, and faulty-test auto-pruning.
 5. **Zero Remote Polluting:** Works strictly on a local Git branch (`feat/ai-unit-tests-api`) with zero automatic remote pushes.
 6. **Detailed Markdown Reporting:** Generates human-readable execution reports in `reports/run_YYYYMMDD_HHMM.md`.
 
@@ -19,7 +19,7 @@ An autonomous, local, and zero-cost code quality and test generation orchestrato
 
 ### 1. Requirements
 - macOS with Apple Silicon (M-series)
-- [Ollama](https://ollama.com/) running with `qwen2.5:14b` (`ollama run qwen2.5:14b`)
+- [Ollama](https://ollama.com/) running with `qwen2.5-coder:14b` (`ollama pull qwen2.5-coder:14b`)
 - Python 3.12+ and `aider` (`uv tool install --python 3.12 aider-chat`)
 
 ### 2. Scanning a Target Project
