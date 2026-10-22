@@ -22,7 +22,7 @@ class ProjectScanner:
 
         self.source_root = self.profile.get_source_root(self.project_path)
 
-    def scan_services(self, domain_filter: Optional[List[str]] = None) -> List[Task]:
+    def scan_services(self, domain_filter: Optional[List[str]] = None, include_broken: bool = False) -> List[Task]:
         if not self.source_root.exists():
             raise FileNotFoundError(f"Source directory not found: {self.source_root}")
 
@@ -67,7 +67,20 @@ class ProjectScanner:
             legacy_spec_in_test = self.project_path / "test" / relative_path.parent / expected_spec.name
 
             if expected_spec.exists() or legacy_spec_in_test.exists():
-                continue
+                if not include_broken:
+                    continue
+                import subprocess
+                spec_to_check = expected_spec if expected_spec.exists() else legacy_spec_in_test
+                rel_spec = str(spec_to_check.relative_to(self.project_path))
+                cmd = self.profile.get_test_command(rel_spec)
+                res = subprocess.run(cmd, cwd=str(self.project_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if res.returncode == 0:
+                    continue
+                print(f"⚠️ [BROKEN SPEC DETECTED]: {rel_spec} failed verification. Queueing for autonomous repair...")
+                quarantine_dir = Path(__file__).resolve().parent.parent / "reports" / "quarantine" / module_name
+                quarantine_dir.mkdir(parents=True, exist_ok=True)
+                (quarantine_dir / expected_spec.name).write_text(spec_to_check.read_text(encoding="utf-8"), encoding="utf-8")
+                spec_to_check.unlink()
 
             # Skip dead or completely commented-out files
             try:

@@ -71,11 +71,52 @@ class BatchRunner:
             })
 
         total_elapsed = time.time() - start_time
-        report_path = self._generate_report(processed_tasks, total_elapsed, start_timestamp)
+        global_gate = self._run_global_quality_gate()
+        report_path = self._generate_report(processed_tasks, total_elapsed, start_timestamp, global_gate)
         print(f"\n📄 Consolidated execution report generated at: {report_path}")
         return report_path
 
-    def _generate_report(self, processed_tasks: List[dict], total_elapsed: float, start_timestamp: str) -> Path:
+    def _run_global_quality_gate(self) -> Optional[dict]:
+        tasks = self.queue_manager.load_queue()
+        if not tasks:
+            return None
+        project_path = Path(tasks[0].project_path).resolve()
+        profile_name = tasks[0].profile
+        if not project_path.exists() or profile_name != "nestjs":
+            return None
+
+        print("\n=======================================================")
+        print("🛡️ [GLOBAL QUALITY GATE]: Verifying full project build & test suite...")
+        print("=======================================================")
+
+        build_code, _, build_err = self.worker.run_command(["npm", "run", "build"], cwd=project_path, timeout=120)
+        build_ok = build_code == 0
+        print(f"  • Global Build (npm run build): {'✅ PASS' if build_ok else '❌ FAIL'}")
+
+        test_code, test_out, test_err = self.worker.run_command(
+            ["npx", "jest", "--config", "jest.config.json"], cwd=project_path, timeout=180
+        )
+        test_ok = test_code == 0
+        print(f"  • Global Unit Test Suite (Jest): {'✅ PASS' if test_ok else '❌ FAIL'}")
+
+        summary_line = ""
+        for line in (test_out + "\n" + test_err).splitlines():
+            if "Test Suites:" in line or "Tests:" in line:
+                summary_line += line.strip() + " | "
+
+        return {
+            "build_ok": build_ok,
+            "test_ok": test_ok,
+            "summary": summary_line.strip(" | ") or ("All suites passed" if test_ok else "Check logs"),
+        }
+
+    def _generate_report(
+        self,
+        processed_tasks: List[dict],
+        total_elapsed: float,
+        start_timestamp: str,
+        global_gate: Optional[dict] = None,
+    ) -> Path:
         now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         report_file = self.reports_dir / f"run_{now_str}.md"
 
@@ -91,12 +132,21 @@ class BatchRunner:
             f"- **Total Processed:** {len(processed_tasks)}",
             f"- **Successes (PASS):** {success_count}",
             f"- **Failures (FAIL):** {failure_count}",
+        ]
+
+        if global_gate:
+            content.extend([
+                f"- **Global Build (`npm run build`):** {'✅ PASS' if global_gate['build_ok'] else '❌ FAIL'}",
+                f"- **Global Test Suite (`npx jest`):** {'✅ PASS' if global_gate['test_ok'] else '❌ FAIL'} ({global_gate['summary']})",
+            ])
+
+        content.extend([
             f"",
             f"## Results Summary Table",
             f"",
             f"| Task ID | Module | Service File | Status | Attempts | Elapsed |",
             f"| :--- | :--- | :--- | :---: | :---: | :---: |",
-        ]
+        ])
 
         for t in processed_tasks:
             icon = "✅ PASS" if t["status"] == "PASS" else "❌ FAIL"

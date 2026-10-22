@@ -29,6 +29,11 @@ def main():
         help="Domain scope: 'core' (customer, tattoo, auth, configurations) or 'all'",
     )
     scan_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
+    scan_parser.add_argument(
+        "--include-broken",
+        action="store_true",
+        help="Verify existing spec files and queue broken ones for autonomous repair",
+    )
 
     # Command: run
     run_parser = subparsers.add_parser("run", help="Run batch test generation worker")
@@ -51,12 +56,12 @@ def main():
     if args.command == "scan":
         scanner = ProjectScanner(Path(args.target), profile_name=args.profile)
         domains = CORE_DOMAINS if args.domain == "core" else None
-        tasks = scanner.scan_services(domain_filter=domains)
+        tasks = scanner.scan_services(domain_filter=domains, include_broken=args.include_broken)
         qm = QueueManager(Path(args.queue_file))
         added = qm.add_tasks(tasks)
         print(f"✅ Scanned project at: {args.target}")
         print(f"Framework Profile: {scanner.profile.name}")
-        print(f"Found {len(tasks)} untested services in '{args.domain}' domain.")
+        print(f"Found {len(tasks)} untested/broken services in '{args.domain}' domain.")
         print(f"Added {added} new tasks to {args.queue_file}.")
         print(f"Current Queue Status: {qm.get_summary()}")
 
