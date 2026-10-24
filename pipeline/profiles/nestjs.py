@@ -52,6 +52,18 @@ class NestJSProfile(ProjectProfile):
       expect(result).toBeDefined();
     });
 
+    it('should query with queryBuilder and return results (QueryBuilder Path)', async () => {
+      // Given (Arrange): use mockResolvedValueOnce on terminal QueryBuilder methods
+      repo.createQueryBuilder().getMany.mockResolvedValueOnce([{ id: '123' }] as any);
+
+      // When (Act)
+      const result = await service.exampleQueryMethod({ active: true });
+
+      // Then (Assert)
+      expect(repo.createQueryBuilder().where).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
     it('should throw exception when entity is not found (Sad Path)', async () => {
       // Given (Arrange)
       repo.findOne.mockResolvedValue(null);

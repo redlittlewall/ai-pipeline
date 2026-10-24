@@ -1,4 +1,4 @@
-# INSTRUÇÃO TÉCNICA: GERAÇÃO DE TESTES UNITÁRIOS (NESTJS / JEST)
+# INSTRUÇÃO TÉCNICA: GERAÇÃO DE TESTES UNITÁRIOS (NESTJS / TYPEORM / JEST)
 
 Preencha os blocos `describe` em `{spec_file}` para testar os métodos de `{service_file}`.
 O arquivo `{service_file}` é SOMENTE LEITURA. Não altere o `beforeEach` do scaffold.
@@ -6,13 +6,32 @@ O arquivo `{service_file}` é SOMENTE LEITURA. Não altere o `beforeEach` do sca
 ================================================================================
 1. REGRAS NEGATIVAS MANDATÓRIAS (ANTI-PATTERNS PROIBIDOS)
 ================================================================================
-- ❌ PROIBIDO: `service.metodo = jest.fn()` ou `jest.spyOn(service, ...)`. NUNCA mocke a própria classe/método sob teste. O método DEVE executar sua lógica real. Mocke apenas as dependências injetadas.
+- ❌ PROIBIDO: `service.metodo = jest.fn()` ou `jest.spyOn(service, ...)`. NUNCA mocke a própria classe/método sob teste (Princípio Anti-SUT de Khorikov). O método DEVE executar sua lógica real. Mocke apenas as dependências injetadas.
+- ❌ PROIBIDO: Alterar ou sobrescrever o bloco `beforeEach` do scaffold determinístico.
 - ❌ PROIBIDO: Chamar `.mockResolvedValue()` sem argumento em TypeScript estrito. Use SEMPRE `.mockResolvedValue(null)` ou `.mockResolvedValue([])`.
 - ❌ PROIBIDO: Deixar blocos `describe` vazios sem testes `it(...)`.
-- ❌ PROIBIDO: Instanciar manualmente todos os campos de DTOs ou entidades complexas. Use SEMPRE `as any` em fixtures parciais (ex: `mockData as any`).
+- ❌ PROIBIDO: Instanciar manualmente todos os campos de DTOs ou entidades TypeORM complexas. Use SEMPRE `as any` em fixtures parciais (ex: `{{ id: '123' }} as any`).
 
 ================================================================================
-2. MATRIZ DE CENÁRIOS DE TESTE OBRIGATÓRIOS
+2. SCAFFOLD DETERMINÍSTICO E HELPERS DE MOCK PRONTOS
+================================================================================
+O scaffold já injetou e configurou deterministamente no `beforeEach`:
+1. `createMockRepository()`: Todos os repositórios injetados (`Repository<Entity>`) já possuem mocks prontos e idiomáticos:
+   - `findOne`, `find`, `findAndCount`, `count`, `exist`
+   - `save`: por padrão resolve para `Promise.resolve({{ id: 'mock-id', ...(entity || {{}}) }})`
+   - `create`: por padrão retorna a entidade recebida
+   - `update`, `delete`, `softDelete`, `restore`, `remove`
+   - `createQueryBuilder`: retorna a instância mockada de query builder
+
+2. `createQueryBuilderMock()`: Mock encadeado com Proxy nativo onde TODOS os métodos encadeados retornam `qb`:
+   - `select`, `addSelect`, `where`, `andWhere`, `orWhere`
+   - `innerJoin`, `leftJoin`, `innerJoinAndSelect`, `leftJoinAndSelect`
+   - `groupBy`, `addGroupBy`, `orderBy`, `addOrderBy`, `take`, `skip`, `from`, `delete`
+   - Execução automática de callbacks e instâncias de `Brackets`: `qb.where(new Brackets(...))` executa o callback passando `qb` automaticamente.
+   - Métodos terminais configurados: `getOne()` (null), `getMany()` ([]), `getRawOne()` (null), `getRawMany()` ([]), `getCount()` (0), `getManyAndCount()` ([[], 0]), `execute()` ({{ affected: 1, raw: [] }}).
+
+================================================================================
+3. MATRIZ DE CENÁRIOS DE TESTE OBRIGATÓRIOS
 ================================================================================
 Para cada método público da classe, implemente múltiplos testes cobrindo os seguintes cenários:
 
@@ -20,7 +39,7 @@ A. Caminho de Sucesso (Happy Path)
 ```typescript
 it('should return result when inputs are valid', async () => {{
   // Arrange: configure retorno esperado dos colaboradores
-  repository.find.mockResolvedValue([mockItem] as any);
+  repository.find.mockResolvedValueOnce([mockItem] as any);
 
   // Act: chame o método REAL do serviço
   const result = await service.metodo('param1');
@@ -31,81 +50,103 @@ it('should return result when inputs are valid', async () => {{
 }});
 ```
 
-B. Branches Condicionais e Filtros (if/else, ternários e flags)
+B. Consultas Encadeadas com QueryBuilder
 ```typescript
-it('should apply conditional logic when optional parameter is provided', async () => {{
+it('should query entities through queryBuilder with filters applied', async () => {{
+  // Arrange: configure retorno pontual do QueryBuilder
+  repository.createQueryBuilder().getMany.mockResolvedValueOnce([mockEntity] as any);
+
+  // Act: chame o método do serviço
+  const result = await service.metodoComQueryBuilder('filter-val');
+
+  // Assert
+  expect(repository.createQueryBuilder().where).toHaveBeenCalled();
+  expect(result).toHaveLength(1);
+}});
+```
+
+C. Branches Condicionais e Filtros (if/else, ternários e flags)
+```typescript
+it('should apply conditional filter when flag is true', async () => {{
   await service.metodo('value', true);
   expect(repository.createQueryBuilder().andWhere).toHaveBeenCalled();
 }});
 
-it('should bypass conditional logic when optional parameter is omitted', async () => {{
+it('should bypass conditional filter when flag is false', async () => {{
   await service.metodo('value', false);
   expect(repository.createQueryBuilder().andWhere).not.toHaveBeenCalled();
 }});
 ```
 
-C. Casos Limite (Empty State / Not Found)
+D. Casos Limite (Empty State / Not Found)
 ```typescript
 it('should return empty collection when no records exist', async () => {{
-  repository.find.mockResolvedValue([]);
+  repository.find.mockResolvedValueOnce([]);
   const result = await service.metodo('param');
   expect(result).toEqual([]);
 }});
 ```
 
-D. Tratamento de Exceções (Sad Path)
+E. Tratamento de Exceções (Sad Path)
 ```typescript
 it('should throw exception when entity is not found', async () => {{
-  repository.findOne.mockResolvedValue(null);
+  repository.findOne.mockResolvedValueOnce(null);
   await expect(service.metodo('invalid-id')).rejects.toThrow();
 }});
 
 it('should propagate errors when dependency rejects', async () => {{
-  repository.find.mockRejectedValue(new Error('Database unavailable'));
+  repository.find.mockRejectedValueOnce(new Error('Database unavailable'));
   await expect(service.metodo('param')).rejects.toThrow('Database unavailable');
 }});
 ```
 
 ================================================================================
-3. GUIA ANTI-ERROS DE TYPESCRIPT (TYPEORM / BUILDERS / JEST)
+4. GUIA ANTI-ERROS DE TYPESCRIPT (TYPEORM / BUILDERS / JEST)
 ================================================================================
-Para evitar erros TS2345 / TS2339 / TS2352 de propriedades faltantes:
+Para garantir compilação nativa com zero erros de tipagem estrita (TS2345 / TS2339 / TS2352):
 
-A. Callbacks e Builders (Brackets, WhereExpressionBuilder, QueryBuilder)
+A. Fixtures de Entidades e Retornos Parciais
+❌ ERRADO (gera TS2352 ou TS2345 por faltar colunas obrigatórias):
+repository.findOne.mockResolvedValue({{ id: '123' }});
+
+✅ CORRETO (Sempre use casting 'as any' no mock da fixture):
+repository.findOne.mockResolvedValueOnce({{ id: '123' }} as any);
+
+B. Customização Pontual de QueryBuilder
 ❌ ERRADO:
-brackets.whereFactory({{ andWhere: jest.fn() }}); // Falha TS2345: faltam orWhere, where...
+repository.createQueryBuilder = jest.fn(); // Destrói o encadeamento e métodos existentes
 
-✅ CORRETO (Sempre use casting 'as any' no objeto ou variável):
+✅ CORRETO:
+repository.createQueryBuilder().getOne.mockResolvedValueOnce({{ id: '123' }} as any);
+repository.createQueryBuilder().getRawOne.mockResolvedValueOnce({{ total: '5' }});
+
+C. Callbacks e Brackets (WhereExpressionBuilder)
+✅ CORRETO:
+Se precisar instanciar ou chamar diretamente o callback do Brackets em asserções:
 brackets.whereFactory({{ andWhere: jest.fn() }} as any);
 // OU
 const mockQb: any = {{ andWhere: jest.fn() }};
 brackets.whereFactory(mockQb as any);
 
-B. Fixtures de Entidades e Retornos Parciais
-❌ ERRADO:
-repository.findOne.mockResolvedValue({{ id: '123' }}); // Falha por faltar propriedades da Entity
-
-✅ CORRETO (Sempre use casting 'as any'):
-repository.findOne.mockResolvedValue({{ id: '123' }} as any);
-
-C. Chamadas sem retorno (Void / Undefined)
-❌ ERRADO:
-repository.save.mockResolvedValue();
-
-✅ CORRETO:
-repository.save.mockResolvedValue(null);
+D. Importação de Exceções NestJS
+Se for validar instâncias de exceção específicas com `rejects.toThrow(NotFoundException)`:
+Importe diretamente de `@nestjs/common`:
+```typescript
+import {{ NotFoundException, BadRequestException, ConflictException }} from '@nestjs/common';
+```
 
 ================================================================================
-4. EXEMPLO DE REFERÊNCIA DO PROJETO
+5. EXEMPLO DE REFERÊNCIA DO PROJETO
 ================================================================================
 ```typescript
 {golden_template}
 ```
 
 ================================================================================
-5. ARQUIVOS DA TAREFA
+6. ARQUIVOS DA TAREFA E FEEDBACK LOOP
 ================================================================================
 Arquivo do Serviço: `{service_file}`
 Arquivo de Teste: `{spec_file}`
 
-Adicione os testes `it(...)` dentro dos `describe` existentes cobrindo a matriz acima (sucesso, branches if/else, edge cases e exceções).
+Adicione os testes `it(...)` dentro dos `describe` existentes cobrindo a matriz acima.
+Se o teste falhar no Jest por nomes de métodos ou colunas de entidades, o pipeline capturará o erro do compilador e injetará o schema exato da entidade TypeORM no prompt de refinamento.

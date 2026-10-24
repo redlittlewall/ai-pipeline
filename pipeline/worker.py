@@ -63,7 +63,7 @@ def parse_line_coverage(stdout: str, service_file_name: str) -> Optional[float]:
 
 
 def sanitize_mock_types(spec_text: str) -> str:
-    """Enforces 'let <dep>: any;', fixes 'src/' import prefixes, heals truncated specs, and upgrades TypeORM mocks."""
+    """Normalizes import prefixes and ensures well-formed spec file structure (Zero-AI)."""
     # 1. Strip 'src/' prefix from module imports (NestJS baseUrl is already 'src')
     spec_text = re.sub(r"from\s+(['\"])src/([^'\"]+)\1", r"from \1\2\1", spec_text)
 
@@ -73,81 +73,8 @@ def sanitize_mock_types(spec_text: str) -> str:
         if last_describe_close != -1:
             spec_text = spec_text[: last_describe_close + 6] + "\n});\n"
 
-    # 3. Enforce 'any' on mock dependency declarations
-    def _repl(m):
-        v = m.group(1)
-        if v.lower() in ("service", "sut"):
-            return m.group(0)
-        return f"let {v}: any;"
-    spec_text = re.sub(
-        r'let\s+([a-zA-Z0-9_]+)\s*:\s*(?:Repository<[^>]+>|(?:jest\.)?Mocked<[^;]+>|[A-Z][a-zA-Z0-9_]+);',
-        _repl,
-        spec_text,
-    )
-
-    # 4. Upgrade save: jest.fn() so unmocked save() calls return the entity with an id instead of undefined
-    spec_text = re.sub(
-        r'\bsave:\s*jest\.fn\(\)\s*,',
-        "save: jest.fn().mockImplementation((e) => Promise.resolve({ id: 'mock-id', ...(e || {}) })),",
-        spec_text,
-    )
-
-    # 5. Heal legacy Repository mocks missing softDelete / count / findAndCount
-    if "delete: jest.fn()," in spec_text and "softDelete:" not in spec_text:
-        spec_text = spec_text.replace(
-            "delete: jest.fn(),",
-            "delete: jest.fn(),\n      softDelete: jest.fn(),\n      restore: jest.fn(),\n      count: jest.fn(),\n      findAndCount: jest.fn(),",
-        )
-
-    # 6. Heal QueryBuilder mocks missing select / addSelect / delete / from / addGroupBy
-    spec_text = re.sub(
-        r'(\{\s*\n\s*innerJoin:\s*jest\.fn\(\)\.mockReturnThis\(\),)',
-        r'{\n        select: jest.fn().mockReturnThis(),\n        addSelect: jest.fn().mockReturnThis(),\n        innerJoin: jest.fn().mockReturnThis(),',
-        spec_text,
-    )
-    if "groupBy: jest.fn().mockReturnThis()," in spec_text and "addGroupBy:" not in spec_text:
-        spec_text = spec_text.replace(
-            "groupBy: jest.fn().mockReturnThis(),",
-            "groupBy: jest.fn().mockReturnThis(),\n      addGroupBy: jest.fn().mockReturnThis(),\n      delete: jest.fn().mockReturnThis(),\n      from: jest.fn().mockReturnThis(),\n      leftJoinAndSelect: jest.fn().mockReturnThis(),\n      innerJoinAndSelect: jest.fn().mockReturnThis(),",
-        )
-
-    # 7. Heal partial object literal casts (e.g. `} as TattooEntity` -> `} as any`) to avoid TS2352
-    spec_text = re.sub(r"\}\s+as\s+[A-Z][A-Za-z0-9_<>\[\]]*", "} as any", spec_text)
-
-    # 8. Auto-import referenced @nestjs/common exceptions if missing
-    nest_exceptions = [
-        "NotFoundException",
-        "BadRequestException",
-        "UnauthorizedException",
-        "ForbiddenException",
-        "ConflictException",
-        "InternalServerErrorException",
-        "HttpException",
-        "HttpStatus",
-    ]
-    missing_ex = [
-        ex for ex in nest_exceptions
-        if re.search(rf"\b{ex}\b", spec_text)
-        and not re.search(rf"import\s+\{{[^}}]*\b{ex}\b[^}}]*\}}\s+from\s+['\"]@nestjs/common['\"]", spec_text)
-    ]
-    if missing_ex:
-        spec_text = f"import {{ {', '.join(missing_ex)} }} from '@nestjs/common';\n" + spec_text
-
-    # 9. Auto-heal WhereExpressionBuilder and Brackets callback arguments (TS2345)
-    # Replaces `whereFactory(mockQb)` or `whereFactory(qb)` with `whereFactory(mockQb as any)`
-    spec_text = re.sub(
-        r'(\bwhereFactory\s*\(\s*)([a-zA-Z0-9_]+)(\s*\))',
-        r'\1\2 as any\3',
-        spec_text,
-    )
-    # Also handle inline object literals passed to whereFactory({ ... }) -> whereFactory({ ... } as any)
-    spec_text = re.sub(
-        r'(\bwhereFactory\s*\(\s*\{[^}]+\})(\s*\))',
-        r'\1 as any\2',
-        spec_text,
-    )
-
     return spec_text
+
 
 
 def prune_failing_tests(spec_text: str, jest_output: str) -> Optional[str]:
@@ -830,7 +757,7 @@ class TaskWorker:
                     last_passing_spec = restored_text
                     last_passing_coverage = line_cov
                     if line_cov is None or line_cov >= self.min_line_coverage:
-                        print(f"✅ [ZERO-SHOT HEALED]: Quarantined spec passed immediately after mock self-healing! (Coverage: {line_cov}%)")
+                        print(f"✅ [REHYDRATE SUCCESS]: Quarantined spec passed immediately! (Coverage: {line_cov}%)")
                         if self.allow_git_commit:
                             commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
                             self.run_command(["git", "add", task.spec_file], cwd=project_path)

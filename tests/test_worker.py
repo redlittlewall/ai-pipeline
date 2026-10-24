@@ -3,7 +3,13 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 from pipeline.queue_manager import QueueManager, Task
-from pipeline.worker import TaskWorker, check_anti_sut_mocking, get_file_hash, parse_line_coverage
+from pipeline.worker import (
+    TaskWorker,
+    check_anti_sut_mocking,
+    get_file_hash,
+    parse_line_coverage,
+    sanitize_mock_types,
+)
 
 
 class TestTaskWorker(unittest.TestCase):
@@ -240,6 +246,47 @@ export class SetArtistLocaleService {
         # Task deve estar completada com sucesso
         updated = self.qm.load_queue()[0]
         self.assertEqual(updated.status, "completed")
+
+    def test_sanitize_mock_types_does_not_monkey_patch_runtime_mocks(self):
+        """Valida que o worker purga substituições frágeis de regex (Ticket 03), confiando no scaffold determinístico e Jest."""
+        raw_spec = (
+            "import { User } from 'src/modules/user/user.entity';\n\n"
+            "describe('UserService', () => {\n"
+            "  let repo = {\n"
+            "    save: jest.fn(),\n"
+            "    delete: jest.fn(),\n"
+            "  };\n"
+            "  it('should test whereFactory', () => {\n"
+            "    whereFactory(qb);\n"
+            "  });\n"
+            "});\n"
+        )
+
+        cleaned = sanitize_mock_types(raw_spec)
+
+        # 1. Normaliza prefixo 'src/' em imports
+        self.assertIn("import { User } from 'modules/user/user.entity';", cleaned)
+
+        # 2. NÃO deve monkey-patchar regexes frágeis em runtime:
+        # save não deve ser alterado com mockImplementation arbitrário
+        self.assertIn("save: jest.fn(),", cleaned)
+        # softDelete não deve ser injetado via regex artesanal
+        self.assertNotIn("softDelete:", cleaned)
+        # whereFactory não deve receber casting arbitrário via regex
+        self.assertIn("whereFactory(qb);", cleaned)
+        self.assertNotIn("whereFactory(qb as any)", cleaned)
+
+        # 3. Fecha bloco describe se o arquivo foi truncado pela metade
+        truncated_spec = (
+            "describe('UserService', () => {\n"
+            "  it('test 1', () => {\n"
+            "    expect(1).toBe(1);\n"
+            "  });\n"
+            "  it('incomplete test', () => {\n"
+            "    expect(2)"
+        )
+        healed = sanitize_mock_types(truncated_spec)
+        self.assertTrue(healed.endswith("});\n"))
 
 
 if __name__ == "__main__":

@@ -44,6 +44,13 @@ export class UserService {
         self.assertIn("provide: getRepositoryToken(UserEntity)", scaffold)
         self.assertIn("provide: MailerService", scaffold)
 
+        # Assert clean, idiomatic mock helpers are structured in the scaffold
+        self.assertIn("const createQueryBuilderMock = () => {", scaffold)
+        self.assertIn("const createMockRepository = () => {", scaffold)
+        self.assertIn("userRepository = createMockRepository();", scaffold)
+        self.assertIn("softDelete: jest.fn()", scaffold)
+        self.assertIn("save: jest.fn()", scaffold)
+
         # Assert baseline test and method describe block
         self.assertIn("it('should be defined'", scaffold)
         self.assertIn("describe('createUser'", scaffold)
