@@ -60,6 +60,13 @@ class TestBatchRunner(unittest.TestCase):
         self.assertIn("**Failures (FAIL):** 1", report_content)
         self.assertIn("Mock failure", report_content)
 
+        # Valida que o Sumário Executivo Pré-PR também foi gerado ao final da esteira
+        pre_pr_canonical = self.reports_dir / "PRE_PR_SUMMARY.md"
+        self.assertTrue(pre_pr_canonical.exists())
+        pre_pr_content = pre_pr_canonical.read_text(encoding="utf-8")
+        self.assertIn("Pre-PR Executive Quality Summary", pre_pr_content)
+        self.assertIn("Painel de Decisão Rápida do Tech Lead", pre_pr_content)
+
 
 if __name__ == "__main__":
     unittest.main()

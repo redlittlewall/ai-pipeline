@@ -80,6 +80,11 @@ def main():
         default=None,
         help="Path to an external SonarQube JSON report (/api/issues/search format) to ingest",
     )
+    audit_parser.add_argument(
+        "--pre-pr",
+        action="store_true",
+        help="Generate Pre-PR Executive Summary along with audit findings",
+    )
 
     # Command: run
     run_parser = subparsers.add_parser("run", help="Run batch test generation worker")
@@ -111,8 +116,44 @@ def main():
     retry_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
 
     # Command: status
-    status_parser = subparsers.add_parser("status", help="Show current queue status")
+    status_parser = subparsers.add_parser("status", help="Show current queue status and Golden Dataset size")
     status_parser.add_argument("--queue-file", default="queue.json", help="Path to queue.json file")
+    status_parser.add_argument(
+        "--golden-dir",
+        default=None,
+        help="Path to golden specs dataset directory (default: datasets/golden_specs)",
+    )
+
+    # Command: pre-pr
+    pre_pr_parser = subparsers.add_parser(
+        "pre-pr",
+        help="Generate Pre-PR Executive Quality Summary for Tech Lead review",
+    )
+    pre_pr_parser.add_argument(
+        "--target",
+        default=None,
+        help="Path to target project (defaults to project_path from queue.json or /Users/redguy/TattooPop/tattoopop-api)",
+    )
+    pre_pr_parser.add_argument(
+        "--queue-file",
+        default="queue.json",
+        help="Path to queue.json file (default: queue.json)",
+    )
+    pre_pr_parser.add_argument(
+        "--sonar-json",
+        default=None,
+        help="Path to an external SonarQube JSON report to ingest",
+    )
+    pre_pr_parser.add_argument(
+        "--output",
+        default=None,
+        help="Custom output file path for the summary report",
+    )
+    pre_pr_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit with code 1 if Quality Gate or Immutability checks fail",
+    )
 
     # Command: benchmark
     bench_parser = subparsers.add_parser(
@@ -214,6 +255,12 @@ def main():
             print(f"   ↳ {f.message}")
             print(f"   💡 Sugestão: {f.suggestion}\n")
 
+        if getattr(args, "pre_pr", False):
+            from pipeline.pre_pr_summary import PrePRSummaryGenerator
+            generator = PrePRSummaryGenerator(project_path=Path(args.target))
+            p_path = generator.generate_summary(sonar_json_path=sonar_path)
+            print(f"📋 Pre-PR Executive Summary generated at: {p_path}\n")
+
     elif args.command == "run":
         qm = QueueManager(Path(args.queue_file))
         if args.retry_failed:
@@ -234,6 +281,40 @@ def main():
     elif args.command == "status":
         qm = QueueManager(Path(args.queue_file))
         print(f"Queue Status ({args.queue_file}): {qm.get_summary()}")
+        from pipeline.dataset_archiver import format_golden_dataset_status
+        golden_dir = Path(args.golden_dir) if getattr(args, "golden_dir", None) else None
+        print(format_golden_dataset_status(base_dir=golden_dir))
+
+    elif args.command == "pre-pr":
+        from pipeline.pre_pr_summary import PrePRSummaryGenerator
+        from pipeline.dataset_archiver import verify_no_production_files_altered
+
+        target_path = Path(args.target) if args.target else None
+        qm = QueueManager(Path(args.queue_file))
+        if not target_path:
+            existing = qm.load_queue()
+            if existing:
+                target_path = Path(existing[0].project_path)
+            else:
+                target_path = Path("/Users/redguy/TattooPop/tattoopop-api")
+
+        sonar_path = Path(args.sonar_json) if args.sonar_json else None
+        output_path = Path(args.output) if args.output else None
+
+        generator = PrePRSummaryGenerator(project_path=target_path)
+        summary_path = generator.generate_summary(
+            sonar_json_path=sonar_path,
+            output_file=output_path,
+            queue_file=Path(args.queue_file),
+        )
+        print(f"✅ Pre-PR Executive Summary generated successfully at: {summary_path}")
+
+        if args.check:
+            is_safe, prod_altered, _ = verify_no_production_files_altered(target_path)
+            if not is_safe:
+                print(f"❌ CHECK FAILED: Production files were altered ({len(prod_altered)} files: {', '.join(prod_altered)})")
+                sys.exit(1)
+            print("🛡️ Immutability check passed: 0 production files altered.")
 
     elif args.command == "benchmark":
         model_list = [m.strip() for m in args.models.split(",") if m.strip()]

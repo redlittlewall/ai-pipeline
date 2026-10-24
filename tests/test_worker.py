@@ -26,7 +26,8 @@ class TestTaskWorker(unittest.TestCase):
         self.service_file.write_text("export class TestService {}", encoding="utf-8")
 
         self.spec_file = self.src_dir / "Test.service.spec.ts"
-        self.worker = TaskWorker(min_line_coverage=50.0)
+        self.golden_dir = self.project_path / "golden_specs"
+        self.worker = TaskWorker(min_line_coverage=50.0, golden_dataset_dir=self.golden_dir)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -287,6 +288,62 @@ export class SetArtistLocaleService {
         )
         healed = sanitize_mock_types(truncated_spec)
         self.assertTrue(healed.endswith("});\n"))
+
+    @patch.object(TaskWorker, "run_command")
+    def test_execute_task_archives_to_golden_dataset_when_score_gte_85(self, mock_run_command):
+        """Valida que teste aprovado com score >= 85 é automaticamente arquivado no Golden Dataset (Ticket 06)."""
+        coverage_output = (
+            "PASS test\n"
+            "File | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s\n"
+            "Test.service.ts | 95.0 | 80.0 | 90.0 | 90.0 | 10-12\n"
+        )
+
+        def fake_run_command(cmd, cwd=None, timeout=None):
+            if any("aider" in str(arg) for arg in cmd):
+                self.spec_file.write_text(
+                    "describe('TestService', () => {\n"
+                    "  it('should work', () => { expect(true).toBe(true); });\n"
+                    "  it('handles error', async () => { await expect(service.fail()).rejects.toThrow(); });\n"
+                    "});",
+                    encoding="utf-8",
+                )
+                return (0, "Aider success", "")
+            elif any("prettier" in str(arg) for arg in cmd):
+                return (0, "Prettier success", "")
+            elif any("jest" in str(arg) for arg in cmd):
+                return (0, coverage_output, "")
+            elif any("git" in str(arg) for arg in cmd):
+                return (0, "", "")
+            return (0, "", "")
+
+        mock_run_command.side_effect = fake_run_command
+
+        golden_dir = self.project_path / "custom_golden"
+        worker = TaskWorker(min_line_coverage=50.0, golden_dataset_dir=golden_dir)
+
+        task = Task(
+            id="TASK-GOLDEN-001",
+            project_path=str(self.project_path),
+            service_file="src/modules/test/Test.service.ts",
+            spec_file="src/modules/test/Test.service.spec.ts",
+            module_name="test",
+            profile="nestjs",
+        )
+        self.qm.save_queue([task])
+
+        success = worker.execute_task(task, self.qm)
+        self.assertTrue(success)
+        self.assertIsNotNone(worker.last_quality_score)
+        self.assertGreaterEqual(worker.last_quality_score.total_score, 85.0)
+
+        # Verifica se o arquivo foi arquivado em custom_golden/test/Test.service.spec.ts
+        archived_spec = golden_dir / "test" / "Test.service.spec.ts"
+        self.assertTrue(archived_spec.exists())
+        self.assertIn("describe('TestService'", archived_spec.read_text(encoding="utf-8"))
+
+        # Verifica se o manifest.json foi gerado
+        manifest_path = golden_dir / "manifest.json"
+        self.assertTrue(manifest_path.exists())
 
 
 if __name__ == "__main__":

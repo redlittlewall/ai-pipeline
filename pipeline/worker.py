@@ -5,6 +5,7 @@ import re
 import subprocess
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from pipeline.dataset_archiver import archive_golden_spec
 from pipeline.profiles.registry import registry
 from pipeline.quality_score import (
     CoverageMetrics,
@@ -645,6 +646,7 @@ class TaskWorker:
         log_level: str = "compact",
         allow_git_commit: bool = True,
         allow_model_escalation: bool = True,
+        golden_dataset_dir: Optional[Path] = None,
     ):
         self.model = model
         self.timeout_seconds = timeout_seconds
@@ -652,6 +654,8 @@ class TaskWorker:
         self.log_level = log_level.lower()  # 'quiet', 'compact', 'verbose'
         self.allow_git_commit = allow_git_commit
         self.allow_model_escalation = allow_model_escalation
+        self.golden_dataset_dir = golden_dataset_dir
+        self.last_quality_score: Optional[QualityConfidenceScore] = None
 
     def is_verbose(self) -> bool:
         return self.log_level == "verbose"
@@ -687,6 +691,7 @@ class TaskWorker:
             return 1, "", str(e)
 
     def execute_task(self, task: Task, queue_manager: QueueManager) -> bool:
+        self.last_quality_score = None
         project_path = Path(task.project_path).resolve()
         service_file_path = project_path / task.service_file
         spec_file_path = project_path / task.spec_file
@@ -1087,6 +1092,24 @@ class TaskWorker:
                 print(f"✅ SUCCESS! High-quality unit tests verified for {task.service_file}")
                 print(f"   ↳ {score.summary()}")
 
+                self.last_quality_score = score
+                if score.total_score >= 85.0:
+                    try:
+                        archived = archive_golden_spec(
+                            spec_file=spec_file_path,
+                            module=task.module_name,
+                            quality_score=score.total_score,
+                            service_file=task.service_file,
+                            line_coverage=line_cov,
+                            branch_coverage=branch_cov,
+                            base_dir=self.golden_dataset_dir,
+                        )
+                        if archived:
+                            print(f"📁 [GOLDEN DATASET]: Archived high-quality spec (Score: {score.total_score:.1f} >= 85) to {archived}")
+                    except Exception as e:
+                        if self.is_verbose():
+                            print(f"Notice: Golden dataset archiving skipped ({e})")
+
                 if self.allow_git_commit:
                     commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {score.total_score:.0f})"
                     self.run_command(["git", "add", task.spec_file], cwd=project_path)
@@ -1204,6 +1227,23 @@ class TaskWorker:
             print(f"🛡️ [PRESERVATION]: Preserving verified test suite with Score {last_passing_score.total_score:.1f}/100.")
             spec_file_path.write_text(last_passing_spec, encoding="utf-8")
             self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
+            self.last_quality_score = last_passing_score
+            if last_passing_score.total_score >= 85.0:
+                try:
+                    archived = archive_golden_spec(
+                        spec_file=spec_file_path,
+                        module=task.module_name,
+                        quality_score=last_passing_score.total_score,
+                        service_file=task.service_file,
+                        line_coverage=last_passing_coverage,
+                        branch_coverage=last_passing_score.details.get("branch_coverage"),
+                        base_dir=self.golden_dataset_dir,
+                    )
+                    if archived:
+                        print(f"📁 [GOLDEN DATASET]: Archived high-quality spec (Score: {last_passing_score.total_score:.1f} >= 85) to {archived}")
+                except Exception as e:
+                    if self.is_verbose():
+                        print(f"Notice: Golden dataset archiving skipped ({e})")
             if self.allow_git_commit:
                 commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {last_passing_score.total_score:.0f})"
                 self.run_command(["git", "add", task.spec_file], cwd=project_path)
@@ -1234,6 +1274,9 @@ class TaskWorker:
             last_error = f"Quality Confidence Score {last_passing_score.total_score:.1f}/100 reprovado (< 70): {reasons}"
         else:
             last_error = error_traceback[-500:] if "error_traceback" in locals() else "Unknown failure"
+
+        if "last_passing_score" in locals() and last_passing_score:
+            self.last_quality_score = last_passing_score
 
         queue_manager.update_task_status(
             task.id,

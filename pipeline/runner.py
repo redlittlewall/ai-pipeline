@@ -66,20 +66,59 @@ class BatchRunner:
             tasks = self.queue_manager.load_queue()
             latest = next((t for t in tasks if t.id == task.id), task)
 
+            task_score = getattr(self.worker, "last_quality_score", None)
+            score_val = task_score.total_score if task_score else None
+            cov_val = (
+                task_score.details.get("line_coverage")
+                if task_score and isinstance(task_score.details, dict)
+                else None
+            )
+            branch_val = (
+                task_score.details.get("branch_coverage")
+                if task_score and isinstance(task_score.details, dict)
+                else None
+            )
+
             processed_tasks.append({
                 "id": latest.id,
                 "module": latest.module_name,
                 "service": latest.service_file,
+                "spec": latest.spec_file,
                 "status": "PASS" if success else "FAIL",
                 "attempts": latest.attempts,
                 "elapsed": f"{elapsed:.1f}s",
+                "elapsed_seconds": elapsed,
                 "error": latest.error_log or "N/A",
+                "quality_score": score_val,
+                "line_coverage": cov_val,
+                "branch_coverage": branch_val,
+                "archived": bool(score_val and score_val >= 85.0),
             })
 
         total_elapsed = time.time() - start_time
         global_gate = self._run_global_quality_gate()
         report_path = self._generate_report(processed_tasks, total_elapsed, start_timestamp, global_gate)
         print(f"\n📄 Consolidated execution report generated at: {report_path}")
+
+        # Gera o Sumário Executivo Pré-PR conciso para revisão pelo Tech Lead (< 2 minutos)
+        from pipeline.pre_pr_summary import PrePRSummaryGenerator
+        all_queue_tasks = self.queue_manager.load_queue()
+        project_path = (
+            Path(all_queue_tasks[0].project_path).resolve()
+            if all_queue_tasks
+            else Path(__file__).resolve().parent.parent
+        )
+        pre_pr_gen = PrePRSummaryGenerator(
+            project_path=project_path,
+            reports_dir=self.reports_dir,
+            golden_dataset_dir=getattr(self.worker, "golden_dataset_dir", None),
+        )
+        pre_pr_path = pre_pr_gen.generate_summary(
+            processed_tasks=processed_tasks,
+            total_elapsed=total_elapsed,
+            global_gate=global_gate,
+        )
+        print(f"📋 Pre-PR Executive Quality Summary generated at: {pre_pr_path}")
         return report_path
 
     def _run_global_quality_gate(self) -> Optional[dict]:
@@ -150,13 +189,14 @@ class BatchRunner:
             f"",
             f"## Results Summary Table",
             f"",
-            f"| Task ID | Module | Service File | Status | Attempts | Elapsed |",
-            f"| :--- | :--- | :--- | :---: | :---: | :---: |",
+            f"| Task ID | Module | Service File | Status | Score | Attempts | Elapsed |",
+            f"| :--- | :--- | :--- | :---: | :---: | :---: | :---: |",
         ])
 
         for t in processed_tasks:
             icon = "✅ PASS" if t["status"] == "PASS" else "❌ FAIL"
-            content.append(f"| `{t['id']}` | `{t['module']}` | `{t['service']}` | {icon} | {t['attempts']} | {t['elapsed']} |")
+            score_str = f"{t['quality_score']:.1f}" if t.get("quality_score") is not None else "N/A"
+            content.append(f"| `{t['id']}` | `{t['module']}` | `{t['service']}` | {icon} | {score_str} | {t['attempts']} | {t['elapsed']} |")
 
         if failure_count > 0:
             content.extend([
