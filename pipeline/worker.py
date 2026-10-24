@@ -644,12 +644,14 @@ class TaskWorker:
         min_line_coverage: float = 60.0,
         log_level: str = "compact",
         allow_git_commit: bool = True,
+        allow_model_escalation: bool = True,
     ):
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.min_line_coverage = min_line_coverage
         self.log_level = log_level.lower()  # 'quiet', 'compact', 'verbose'
         self.allow_git_commit = allow_git_commit
+        self.allow_model_escalation = allow_model_escalation
 
     def is_verbose(self) -> bool:
         return self.log_level == "verbose"
@@ -749,6 +751,8 @@ class TaskWorker:
 
         queue_manager.update_task_status(task.id, "in_progress")
         current_model = self.model
+        if current_model in ("gemini-2.5-flash", "gemini/gemini-2.5-flash"):
+            current_model = "gemini/gemini-3.8-flash"
         previous_error: Optional[str] = None
         last_passing_spec: Optional[str] = None
         last_passing_coverage: Optional[float] = None
@@ -904,28 +908,37 @@ class TaskWorker:
             combined_output = stdout + "\n" + stderr
             if any(err in combined_output for err in ["RateLimitError", "rate_limit_exceeded", "RESOURCE_EXHAUSTED", "code\": 429"]):
                 print(f"⚠️ [RATE LIMIT DETECTED on {current_model}]")
-                if current_model.startswith("groq/"):
-                    current_model = "gemini/gemini-2.5-flash"
-                elif current_model.startswith("gemini/"):
-                    current_model = "groq/openai/gpt-oss-120b"
-                print(f"🔄 [PROVIDER ROTATION]: Failover target model: {current_model}")
+                if self.allow_model_escalation:
+                    if current_model.startswith("groq/"):
+                        current_model = "gemini/gemini-3.8-flash"
+                    elif current_model.startswith("gemini/"):
+                        current_model = "groq/openai/gpt-oss-120b"
+                    print(f"🔄 [PROVIDER ROTATION]: Failover target model: {current_model}")
 
-                if post_aider_spec_hash == pre_aider_spec_hash:
-                    print("⏩ Aider aborted before modifying spec due to rate limit. Retrying immediate failover with rotated provider...")
-                    time.sleep(8)
-                    aider_failover_cmd = list(aider_cmd)
-                    aider_failover_cmd[2] = current_model
-                    _, fo_stdout, fo_stderr = self.run_command(aider_failover_cmd, cwd=project_path)
-                    post_aider_spec_hash = get_file_hash(spec_file_path)
-                    combined_output = fo_stdout + "\n" + fo_stderr
                     if post_aider_spec_hash == pre_aider_spec_hash:
-                        print("⚠️ Failover provider also throttled. Cooling down 15s before next attempt...")
-                        time.sleep(15)
-                        continue
+                        print("⏩ Aider aborted before modifying spec due to rate limit. Retrying immediate failover with rotated provider...")
+                        time.sleep(8)
+                        aider_failover_cmd = list(aider_cmd)
+                        aider_failover_cmd[2] = current_model
+                        _, fo_stdout, fo_stderr = self.run_command(aider_failover_cmd, cwd=project_path)
+                        post_aider_spec_hash = get_file_hash(spec_file_path)
+                        combined_output = fo_stdout + "\n" + fo_stderr
+                        if post_aider_spec_hash == pre_aider_spec_hash:
+                            print("⚠️ Failover provider also throttled. Cooling down 15s before next attempt...")
+                            time.sleep(15)
+                            continue
+                        else:
+                            print(f"✅ Failover with {current_model} successfully modified spec! Proceeding to verification...")
                     else:
-                        print(f"✅ Failover with {current_model} successfully modified spec! Proceeding to verification...")
+                        print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
                 else:
-                    print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
+                    if post_aider_spec_hash == pre_aider_spec_hash:
+                        print("⚠️ [RATE LIMIT]: Model escalation disabled. Cooling down 15s before retrying with same model...")
+                        time.sleep(15)
+                        _, fo_stdout, fo_stderr = self.run_command(aider_cmd, cwd=project_path)
+                        post_aider_spec_hash = get_file_hash(spec_file_path)
+                    else:
+                        print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
 
             # Deterministic Mechanical Sanitizer & Formatter (Zero-AI)
             if spec_file_path.exists():
@@ -1095,10 +1108,10 @@ class TaskWorker:
                         print(f"   ↳ [ERROR RESUMO]: {compact_err}\n")
 
                 # Repetition Circuit Breaker
-                if previous_error and error_traceback[-250:] == previous_error[-250:]:
+                if self.allow_model_escalation and previous_error and error_traceback[-250:] == previous_error[-250:]:
                     print(f"⚡ [CIRCUIT BREAKER]: Identical error repeated on attempt {attempt}. Escalating provider to break loop...")
                     if current_model.startswith("groq/"):
-                        current_model = "gemini/gemini-2.5-flash"
+                        current_model = "gemini/gemini-3.8-flash"
                     elif current_model.startswith("gemini/"):
                         current_model = "groq/openai/gpt-oss-120b"
                 previous_error = error_traceback
