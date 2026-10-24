@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from pipeline.profiles.registry import registry
 from pipeline.queue_manager import QueueManager, Task
 
@@ -255,6 +255,451 @@ def format_refinement_prompt(
     return f"{base_prompt}\n{history_block}{surgical_block}{type_context if type_context else ''}"
 
 
+def is_repository_or_type_error(error_text: str) -> bool:
+    """Identifies if Jest/TypeScript failure is due to missing repository methods or incompatible types."""
+    if not error_text:
+        return False
+
+    # TypeScript errors (TS2345, TS2339, TS2352, TS2322)
+    if re.search(r"\b(TS2345|TS2339|TS2352|TS2322)\b", error_text):
+        return True
+
+    # Jest runtime TypeErrors
+    if "TypeError" in error_text:
+        return True
+
+    # Distinct TypeORM method/function names (never ambiguous with standard English)
+    distinct_repo_methods = [
+        "softDelete",
+        "createQueryBuilder",
+        "findAndCount",
+        "findOne",
+        "getOne",
+        "getMany",
+        "getRawOne",
+        "getRawMany",
+        "getRepositoryToken",
+        "leftJoinAndSelect",
+        "innerJoinAndSelect",
+    ]
+    if any(re.search(rf"\b{re.escape(m)}\b", error_text) for m in distinct_repo_methods):
+        return True
+
+    # Common CRUD methods must be preceded by a dot (e.g. .find(, .save(, .delete()
+    common_crud_methods = [
+        "find",
+        "save",
+        "delete",
+        "count",
+        "update",
+        "insert",
+        "restore",
+        "preload",
+        "merge",
+    ]
+    if any(re.search(rf"\.{re.escape(m)}\b", error_text) for m in common_crud_methods):
+        return True
+
+    # Generic repository keywords
+    if "Repository" in error_text or "getRepositoryToken" in error_text:
+        return True
+
+    return False
+
+
+def identify_failed_entities(error_text: str, service_code: str) -> List[str]:
+    """Identifies which TypeORM entities are associated with the failure based on error and service dependencies."""
+    if not service_code:
+        return []
+
+    # 1. Parse repository dependencies and injected entities in the constructor
+    repo_param_to_entity: Dict[str, str] = {}
+    service_repo_entities: List[str] = []
+
+    ctor_match = re.search(r"constructor\s*\(([\s\S]*?)\)\s*\{", service_code)
+    if ctor_match:
+        params_block = ctor_match.group(1)
+        param_pattern = re.compile(
+            r"(?:@InjectRepository\((?P<entity>\w+)\)\s*)?"
+            r"(?:private|protected|public)?\s*(?:readonly)?\s*"
+            r"(?P<param_name>\w+)\s*:\s*"
+            r"(?P<param_type>[A-Za-z0-9_<>]+)"
+        )
+        for match in param_pattern.finditer(params_block):
+            entity = match.group("entity")
+            p_name = match.group("param_name")
+            p_type = match.group("param_type")
+            is_repo = bool(entity) or "Repository<" in p_type
+            entity_name = entity or (
+                p_type.replace("Repository<", "").replace(">", "")
+                if "Repository<" in p_type
+                else None
+            )
+            if is_repo and entity_name:
+                repo_param_to_entity[p_name] = entity_name
+                if entity_name not in service_repo_entities:
+                    service_repo_entities.append(entity_name)
+
+    # 2. Parse imported entity symbols from service_code
+    imported_entities: Set[str] = set()
+    import_pattern = re.compile(
+        r"import\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]", re.MULTILINE
+    )
+    for match in import_pattern.finditer(service_code):
+        symbols = [s.strip() for s in match.group(1).split(",")]
+        import_path = match.group(2)
+        if (
+            import_path.endswith(".entity")
+            or ".entity" in import_path
+            or "/entities/" in import_path
+            or "/model/" in import_path
+        ):
+            for sym in symbols:
+                clean_sym = sym.split()[0]
+                if clean_sym:
+                    imported_entities.add(clean_sym)
+
+    # If no error_text provided, return all known service repo entities (or imported entities)
+    if not error_text:
+        return list(service_repo_entities) if service_repo_entities else list(imported_entities)
+
+    matched_entities: List[str] = []
+
+    # Check for repository parameter names mentioned in error (e.g. this.artistLocatesInAdressesRepository.softDelete)
+    for p_name, entity in repo_param_to_entity.items():
+        if re.search(rf"\b{re.escape(p_name)}\b", error_text):
+            if entity not in matched_entities:
+                matched_entities.append(entity)
+
+    # Check for known entity names explicitly mentioned in error_text
+    all_known_entities = list(dict.fromkeys(service_repo_entities + list(imported_entities)))
+    for entity in all_known_entities:
+        if re.search(rf"\b{re.escape(entity)}\b", error_text):
+            if entity not in matched_entities:
+                matched_entities.append(entity)
+
+    # Check for Repository<Entity> in error_text
+    for m in re.finditer(r"Repository<([A-Za-z0-9_]+)>", error_text):
+        ent = m.group(1)
+        if ent not in matched_entities:
+            matched_entities.append(ent)
+
+    # Check for TS error type references, e.g. "type 'X'" or "parameter of type 'X'"
+    for m in re.finditer(
+        r"(?:type|Property|parameter of type|assignable to parameter of type)\s+['\"]?([A-Za-z0-9_]+)['\"]?",
+        error_text,
+    ):
+        ent = m.group(1)
+        if ent in all_known_entities and ent not in matched_entities:
+            matched_entities.append(ent)
+
+    # If specific entities matched, return them
+    if matched_entities:
+        return matched_entities
+
+    # Fallback: if error is repository/type error, provide all repository entities of the service
+    if is_repository_or_type_error(error_text):
+        if service_repo_entities:
+            return list(service_repo_entities)
+        if imported_entities:
+            return list(imported_entities)
+
+    return []
+
+
+def find_entity_file(
+    project_path: Path,
+    entity_name: str,
+    service_code: Optional[str] = None,
+    service_path: Optional[Path] = None,
+) -> Optional[Path]:
+    """Locates the *.entity.ts file defining entity_name within project_path."""
+    project_path = Path(project_path).resolve()
+
+    # 1. Check imports in service_code
+    if service_code:
+        import_pattern = re.compile(
+            rf"import\s+\{{[^}}]*\b{re.escape(entity_name)}\b[^}}]*\}}\s+from\s+['\"]([^'\"]+)['\"]",
+            re.MULTILINE,
+        )
+        m = import_pattern.search(service_code)
+        if m:
+            imp_path = m.group(1)
+            # Relative import
+            if imp_path.startswith(".") and service_path:
+                candidates = [
+                    (service_path.parent / f"{imp_path}.ts").resolve(),
+                    (service_path.parent / f"{imp_path}").resolve(),
+                ]
+                for cand in candidates:
+                    if cand.is_file():
+                        return cand
+            else:
+                # Absolute or baseUrl-relative import
+                candidates = [
+                    (project_path / "src" / f"{imp_path}.ts").resolve(),
+                    (project_path / f"{imp_path}.ts").resolve(),
+                    (project_path / "src" / imp_path).resolve(),
+                    (project_path / imp_path).resolve(),
+                ]
+                for cand in candidates:
+                    if cand.is_file():
+                        return cand
+
+    # 2. Look by filename pattern
+    search_dirs = [project_path / "src", project_path]
+    for sdir in search_dirs:
+        if not sdir.exists():
+            continue
+        patterns = [
+            f"**/{entity_name}.entity.ts",
+            f"**/{entity_name.lower()}.entity.ts",
+            f"**/*{entity_name}*.entity.ts",
+        ]
+        for pat in patterns:
+            for match in sdir.glob(pat):
+                if match.is_file():
+                    return match.resolve()
+
+    # 3. Scan all *.entity.ts files for class declaration
+    for sdir in search_dirs:
+        if not sdir.exists():
+            continue
+        for ent_file in sdir.glob("**/*.entity.ts"):
+            if not ent_file.is_file():
+                continue
+            try:
+                text = ent_file.read_text(encoding="utf-8")
+                if re.search(rf"export\s+(?:default\s+)?class\s+{re.escape(entity_name)}\b", text):
+                    return ent_file.resolve()
+            except Exception:
+                pass
+
+    return None
+
+
+def extract_class_body(code: str, class_name: Optional[str] = None) -> Tuple[str, str]:
+    """Extracts the class name and inner body enclosed by balanced braces."""
+    clean = re.sub(r"//.*", "", code)
+    clean = re.sub(r"/\*[\s\S]*?\*/", "", clean)
+
+    if class_name:
+        pattern = re.compile(
+            rf"(?:@Entity[^{{]*\n\s*)?export\s+(?:default\s+)?class\s+({re.escape(class_name)})\b[^{{]*\{{"
+        )
+    else:
+        pattern = re.compile(
+            r"(?:@Entity[^{{]*\n\s*)?export\s+(?:default\s+)?class\s+(\w+)\b[^{{]*\{{"
+        )
+
+    m = pattern.search(clean)
+    if not m:
+        return "", ""
+
+    matched_name = m.group(1)
+    start_idx = m.end() - 1  # at '{'
+    depth = 0
+    end_idx = start_idx
+    for i in range(start_idx, len(clean)):
+        if clean[i] == "{":
+            depth += 1
+        elif clean[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end_idx = i
+                break
+
+    body = clean[start_idx + 1 : end_idx]
+    return matched_name, body
+
+
+def parse_typeorm_entity(
+    entity_file_path: Path, entity_name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Parses a TypeORM *.entity.ts file and extracts its columns and relationships."""
+    if not entity_file_path.exists():
+        return {"class_name": entity_name or "", "fields": []}
+
+    content = entity_file_path.read_text(encoding="utf-8")
+    matched_name, body = extract_class_body(content, entity_name)
+    if not body:
+        return {"class_name": entity_name or "", "fields": []}
+
+    RELATION_DECORATORS = {"ManyToOne", "OneToMany", "ManyToMany", "OneToOne"}
+    COLUMN_DECORATORS = {
+        "Column",
+        "PrimaryGeneratedColumn",
+        "PrimaryColumn",
+        "CreateDateColumn",
+        "UpdateDateColumn",
+        "DeleteDateColumn",
+        "VersionColumn",
+    }
+
+    fields = []
+    idx = 0
+    length = len(body)
+    current_decorators = []
+
+    while idx < length:
+        while idx < length and body[idx].isspace():
+            idx += 1
+        if idx >= length:
+            break
+
+        # Check for decorator
+        if body[idx] == "@":
+            m = re.match(r"@([a-zA-Z0-9_]+)", body[idx:])
+            if m:
+                dec_name = m.group(1)
+                idx += m.end()
+                while idx < length and body[idx].isspace():
+                    idx += 1
+                if idx < length and body[idx] == "(":
+                    depth = 1
+                    idx += 1
+                    while idx < length and depth > 0:
+                        if body[idx] == "(":
+                            depth += 1
+                        elif body[idx] == ")":
+                            depth -= 1
+                        idx += 1
+                current_decorators.append(dec_name)
+                continue
+
+        rest = body[idx:]
+
+        # Skip constructor
+        ctor_match = re.match(r"^constructor\s*\([^{;]*\{", rest)
+        if ctor_match:
+            current_decorators = []
+            idx += ctor_match.end()
+            depth = 1
+            while idx < length and depth > 0:
+                if body[idx] == "{":
+                    depth += 1
+                elif body[idx] == "}":
+                    depth -= 1
+                idx += 1
+            continue
+
+        # Skip methods / getters with balanced braces
+        method_match = re.match(
+            r"^(?:get\s+|set\s+|async\s+)?([a-zA-Z0-9_$]+)\s*\([^)]*\)[^{;]*\{", rest
+        )
+        if method_match:
+            current_decorators = []
+            idx += method_match.end()
+            depth = 1
+            while idx < length and depth > 0:
+                if body[idx] == "{":
+                    depth += 1
+                elif body[idx] == "}":
+                    depth -= 1
+                idx += 1
+            continue
+
+        # Check for property declaration: name: type;
+        prop_match = re.match(
+            r"^(?:public|private|protected)?\s*(?:readonly)?\s*([a-zA-Z0-9_$]+)(\?)?\s*:\s*([^;={\n]+)",
+            rest,
+        )
+        if prop_match:
+            prop_name = prop_match.group(1)
+            is_opt = bool(prop_match.group(2))
+            prop_type = prop_match.group(3).strip()
+
+            has_col = any(d in COLUMN_DECORATORS for d in current_decorators)
+            has_rel = any(d in RELATION_DECORATORS for d in current_decorators)
+
+            # Record if it has TypeORM decorators or if decorators list is present
+            if has_col or has_rel or current_decorators:
+                fields.append({
+                    "name": prop_name + ("?" if is_opt else ""),
+                    "type": prop_type,
+                    "is_relation": has_rel,
+                })
+            current_decorators = []
+            idx += prop_match.end()
+            while idx < length and body[idx] not in (";", "\n"):
+                idx += 1
+            if idx < length and body[idx] == ";":
+                idx += 1
+            continue
+
+        idx += 1
+
+    return {"class_name": matched_name, "fields": fields}
+
+
+def format_entity_schema_block(
+    entity_file_rel_path: str, fields: List[Dict[str, Any]]
+) -> str:
+    """Formats an entity's schema into the exact markdown/text block required for prompt injection."""
+    lines = [
+        "[CONTEXTO DE ENTIDADE INJETADO DEVIDO A ERRO NO JEST]",
+        f"Arquivo: {entity_file_rel_path}",
+        "Estrutura da Entidade:",
+    ]
+    for f in fields:
+        rel_suffix = " (relation)" if f.get("is_relation") else ""
+        lines.append(f"- {f['name']}: {f['type']}{rel_suffix}")
+    return "\n".join(lines)
+
+
+def extract_entity_schema_from_service(
+    project_path: Union[Path, str],
+    service_file: Union[Path, str],
+    error_text: str = "",
+    service_code: Optional[str] = None,
+) -> str:
+    """Dynamically extracts TypeORM entity schemas when Jest/TypeScript fails on repository/type errors."""
+    project_path = Path(project_path).resolve()
+    service_file_path = (
+        Path(service_file)
+        if Path(service_file).is_absolute()
+        else (project_path / service_file).resolve()
+    )
+
+    if service_code is None:
+        if service_file_path.exists():
+            service_code = service_file_path.read_text(encoding="utf-8")
+        else:
+            service_code = ""
+
+    if error_text and not is_repository_or_type_error(error_text):
+        return ""
+
+    entities = identify_failed_entities(error_text, service_code)
+    if not entities:
+        return ""
+
+    blocks = []
+    seen_entities = set()
+    for ent_name in entities:
+        if ent_name in seen_entities:
+            continue
+        seen_entities.add(ent_name)
+
+        ent_file = find_entity_file(project_path, ent_name, service_code, service_file_path)
+        if not ent_file or not ent_file.exists():
+            continue
+
+        parsed = parse_typeorm_entity(ent_file, ent_name)
+        if not parsed["fields"]:
+            continue
+
+        try:
+            rel_path = ent_file.relative_to(project_path)
+        except ValueError:
+            rel_path = ent_file
+
+        block = format_entity_schema_block(str(rel_path), parsed["fields"])
+        blocks.append(block)
+
+    return "\n\n".join(blocks)
+
+
 class TaskWorker:
     def __init__(
         self,
@@ -416,9 +861,29 @@ class TaskWorker:
                         print(f"🛡️ [PRE-FLIGHT BASELINE]: Secured {last_passing_coverage:.1f}% passing baseline via auto-pruner before AI refinement.")
                     spec_file_path.write_text(unpruned_text, encoding="utf-8")
 
+                schema_context = ""
+                try:
+                    service_content = (
+                        service_file_path.read_text(encoding="utf-8")
+                        if service_file_path.exists()
+                        else None
+                    )
+                    schema_context = extract_entity_schema_from_service(
+                        project_path=project_path,
+                        service_file=task.service_file,
+                        error_text=pre_error,
+                        service_code=service_content,
+                    )
+                    if schema_context and schema_context not in type_context:
+                        type_context = f"{type_context}\n\n{schema_context}"
+                except Exception:
+                    pass
+
+                schema_section = f"\n\n{schema_context}" if schema_context else ""
                 current_prompt = (
                     f"O arquivo de teste `{task.spec_file}` já possui a estrutura de testes criada, mas falhou no Jest com o seguinte erro:\n\n"
-                    f"```\n{pre_error[-1500:]}\n```\n\n"
+                    f"```\n{pre_error[-1500:]}\n```"
+                    f"{schema_section}\n\n"
                     f"Por favor, corrija APENAS os erros de tipagem, imports ou mocks que falharam em `{task.spec_file}` mantendo os testes que já funcionam. "
                     f"Use `as any` para objetos parciais de mock se o TypeScript reclamar de propriedades faltantes. "
                     f"NÃO modifique `{task.service_file}` e NUNCA mocke o próprio serviço."
@@ -662,9 +1127,36 @@ class TaskWorker:
                 attempt_history.append(
                     f"Tentativa {attempt}: Falha de execução no Jest:\n  ↳ {error_traceback[-250:].strip()}"
                 )
+
+                # Dynamic TypeORM Schema Extraction and Injection on Error
+                schema_context = ""
+                try:
+                    service_content = (
+                        service_file_path.read_text(encoding="utf-8")
+                        if service_file_path.exists()
+                        else None
+                    )
+                    schema_context = extract_entity_schema_from_service(
+                        project_path=project_path,
+                        service_file=task.service_file,
+                        error_text=error_traceback,
+                        service_code=service_content,
+                    )
+                    if schema_context:
+                        print(
+                            f"💉 [SCHEMA INJECTION]: Injected TypeORM entity schema into refinement prompt:\n{schema_context}"
+                        )
+                        if schema_context not in type_context:
+                            type_context = f"{type_context}\n\n{schema_context}"
+                except Exception as e:
+                    if self.is_verbose():
+                        print(f"Notice: Schema injection extraction skipped ({e})")
+
+                schema_section = f"\n\n{schema_context}" if schema_context else ""
                 jest_instruction = (
                     f"O teste unitário em `{task.spec_file}` falhou com o seguinte erro:\n\n"
-                    f"```\n{error_traceback[-1500:]}\n```\n\n"
+                    f"```\n{error_traceback[-1500:]}\n```"
+                    f"{schema_section}\n\n"
                     f"Por favor, ajuste EXCLUSIVAMENTE o arquivo `{task.spec_file}` para corrigir os mocks ou asserções e fazer todos os testes passarem. "
                     f"Use `as any` em objetos parciais de mock se houver erro TS2345/TS2339. "
                     f"Lembre-se: NÃO modifique `{task.service_file}` e NUNCA mocke o próprio serviço."
