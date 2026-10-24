@@ -17,6 +17,7 @@ class TestBatchRunner(unittest.TestCase):
 
         self.mock_worker = MagicMock(spec=TaskWorker)
         self.mock_worker.model = "test-model"
+        self.mock_worker.run_command.return_value = (0, "", "")
         self.runner = BatchRunner(self.qm, self.mock_worker, reports_dir=self.reports_dir)
 
     def tearDown(self):

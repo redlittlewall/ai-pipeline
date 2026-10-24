@@ -50,24 +50,48 @@ class QueueManager:
         with open(self.queue_file_path, "w", encoding="utf-8") as f:
             json.dump([task.to_dict() for task in tasks], f, indent=2, ensure_ascii=False)
 
-    def add_tasks(self, new_tasks: List[Task]) -> int:
+    def add_tasks(self, new_tasks: List[Task], reopen_existing: bool = False) -> int:
         existing = self.load_queue()
-        existing_service_files = {t.service_file for t in existing}
+        existing_by_service = {t.service_file: t for t in existing}
+
+        max_id_num = 0
+        for t in existing:
+            try:
+                num = int(t.id.split("-")[-1])
+                if num > max_id_num:
+                    max_id_num = num
+            except Exception:
+                pass
 
         added_count = 0
+        current_id_num = max_id_num
         for task in new_tasks:
-            if task.service_file not in existing_service_files:
+            if task.service_file not in existing_by_service:
+                current_id_num += 1
+                task.id = f"TASK-{current_id_num:03d}"
                 existing.append(task)
-                existing_service_files.add(task.service_file)
+                existing_by_service[task.service_file] = task
+                added_count += 1
+            elif reopen_existing and existing_by_service[task.service_file].status != "pending":
+                existing_task = existing_by_service[task.service_file]
+                existing_task.status = "pending"
+                existing_task.attempts = 0
+                existing_task.error_log = None
+                existing_task.updated_at = datetime.now(timezone.utc).isoformat()
                 added_count += 1
 
         self.save_queue(existing)
         return added_count
 
-    def get_next_pending(self) -> Optional[Task]:
+    def get_next_pending(self, module_filter: Optional[List[str]] = None) -> Optional[Task]:
         tasks = self.load_queue()
         for task in tasks:
             if task.status == "pending":
+                if module_filter and not any(
+                    m.lower() in task.module_name.lower() or m.lower() in task.service_file.lower()
+                    for m in module_filter
+                ):
+                    continue
                 return task
         return None
 
@@ -112,3 +136,11 @@ class QueueManager:
         if reset_count > 0:
             self.save_queue(tasks)
         return reset_count
+
+    def clear_pending_tasks(self) -> int:
+        tasks = self.load_queue()
+        kept = [t for t in tasks if t.status != "pending"]
+        removed = len(tasks) - len(kept)
+        if removed > 0:
+            self.save_queue(kept)
+        return removed

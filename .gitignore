@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 queue.json
-reports/run_*.md
+reports/
 .aider*
 .env
+.venv/
+.DS_Store

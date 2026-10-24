@@ -30,7 +30,11 @@ class BatchRunner:
         print("\n\n⚠️ Execution interrupted by user! Gracefully finishing current task and generating report...")
         self.interrupted = True
 
-    def run_batch(self, max_tasks: Optional[int] = None) -> Path:
+    def run_batch(
+        self,
+        max_tasks: Optional[int] = None,
+        module_filter: Optional[List[str]] = None,
+    ) -> Path:
         start_time = time.time()
         start_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         processed_tasks: List[dict] = []
@@ -39,13 +43,15 @@ class BatchRunner:
         print("\n🚀 Starting Autonomous AI Testing Pipeline Batch...")
         summary_initial = self.queue_manager.get_summary()
         print(f"Initial Queue State: {summary_initial}")
+        if module_filter:
+            print(f"Active Module Filter: {module_filter}")
 
         while not self.interrupted:
             if max_tasks and tasks_count >= max_tasks:
                 print(f"Reached limit of {max_tasks} tasks. Stopping batch.")
                 break
 
-            task = self.queue_manager.get_next_pending()
+            task = self.queue_manager.get_next_pending(module_filter=module_filter)
             if not task:
                 print("No more pending tasks in queue. All done!")
                 break
@@ -169,6 +175,7 @@ class BatchRunner:
                         f"",
                     ])
 
+        report_file.parent.mkdir(parents=True, exist_ok=True)
         with open(report_file, "w", encoding="utf-8") as f:
             f.write("\n".join(content))
 

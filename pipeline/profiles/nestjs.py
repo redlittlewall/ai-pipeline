@@ -25,7 +25,12 @@ class NestJSProfile(ProjectProfile):
     def get_test_command(self, spec_file: str, service_file: Optional[str] = None) -> List[str]:
         cmd = ["npx", "jest", "--config", "jest.config.json"]
         if service_file:
-            cmd.extend(["--coverage", f"--collectCoverageFrom={service_file}"])
+            cmd.extend([
+                "--coverage",
+                f"--collectCoverageFrom={service_file}",
+                "--coverageReporters=text",
+                "--coverageReporters=json",
+            ])
         cmd.append(spec_file)
         return cmd
 

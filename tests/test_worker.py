@@ -59,22 +59,31 @@ class TestTaskWorker(unittest.TestCase):
 
     @patch.object(TaskWorker, "run_command")
     def test_execute_task_success(self, mock_run_command):
-        # Create a clean valid spec file
-        self.spec_file.write_text("// valid spec", encoding="utf-8")
-
         coverage_output = (
             "PASS test\n"
             "File | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s\n"
             "Test.service.ts | 80.0 | 50.0 | 80.0 | 75.0 | 10-12\n"
         )
 
-        mock_run_command.side_effect = [
-            (0, "Aider success", ""),        # Aider execution
-            (0, "Prettier success", ""),     # Prettier formatting
-            (0, coverage_output, ""),        # Jest with coverage >= 50%
-            (0, "", ""),                     # git add
-            (0, "", ""),                     # git commit
-        ]
+        def fake_run_command(cmd, cwd=None, timeout=None):
+            if any("aider" in str(arg) for arg in cmd):
+                self.spec_file.write_text(
+                    "describe('TestService', () => {\n"
+                    "  it('should work', () => { expect(true).toBe(true); });\n"
+                    "  it('should error', () => { expect(false).toBe(false); });\n"
+                    "});",
+                    encoding="utf-8",
+                )
+                return (0, "Aider success", "")
+            elif any("prettier" in str(arg) for arg in cmd):
+                return (0, "Prettier success", "")
+            elif any("jest" in str(arg) for arg in cmd):
+                return (0, coverage_output, "")
+            elif any("git" in str(arg) for arg in cmd):
+                return (0, "", "")
+            return (0, "", "")
+
+        mock_run_command.side_effect = fake_run_command
 
         task = Task(
             id="TASK-TEST-001",

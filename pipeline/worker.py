@@ -110,6 +110,43 @@ def sanitize_mock_types(spec_text: str) -> str:
             "groupBy: jest.fn().mockReturnThis(),",
             "groupBy: jest.fn().mockReturnThis(),\n      addGroupBy: jest.fn().mockReturnThis(),\n      delete: jest.fn().mockReturnThis(),\n      from: jest.fn().mockReturnThis(),\n      leftJoinAndSelect: jest.fn().mockReturnThis(),\n      innerJoinAndSelect: jest.fn().mockReturnThis(),",
         )
+
+    # 7. Heal partial object literal casts (e.g. `} as TattooEntity` -> `} as any`) to avoid TS2352
+    spec_text = re.sub(r"\}\s+as\s+[A-Z][A-Za-z0-9_<>\[\]]*", "} as any", spec_text)
+
+    # 8. Auto-import referenced @nestjs/common exceptions if missing
+    nest_exceptions = [
+        "NotFoundException",
+        "BadRequestException",
+        "UnauthorizedException",
+        "ForbiddenException",
+        "ConflictException",
+        "InternalServerErrorException",
+        "HttpException",
+        "HttpStatus",
+    ]
+    missing_ex = [
+        ex for ex in nest_exceptions
+        if re.search(rf"\b{ex}\b", spec_text)
+        and not re.search(rf"import\s+\{{[^}}]*\b{ex}\b[^}}]*\}}\s+from\s+['\"]@nestjs/common['\"]", spec_text)
+    ]
+    if missing_ex:
+        spec_text = f"import {{ {', '.join(missing_ex)} }} from '@nestjs/common';\n" + spec_text
+
+    # 9. Auto-heal WhereExpressionBuilder and Brackets callback arguments (TS2345)
+    # Replaces `whereFactory(mockQb)` or `whereFactory(qb)` with `whereFactory(mockQb as any)`
+    spec_text = re.sub(
+        r'(\bwhereFactory\s*\(\s*)([a-zA-Z0-9_]+)(\s*\))',
+        r'\1\2 as any\3',
+        spec_text,
+    )
+    # Also handle inline object literals passed to whereFactory({ ... }) -> whereFactory({ ... } as any)
+    spec_text = re.sub(
+        r'(\bwhereFactory\s*\(\s*\{[^}]+\})(\s*\))',
+        r'\1 as any\2',
+        spec_text,
+    )
+
     return spec_text
 
 
@@ -185,9 +222,37 @@ def prune_failing_tests(spec_text: str, jest_output: str) -> Optional[str]:
             modified = modified[:start_idx] + modified[end_idx:]
             removed_count += 1
 
-    if removed_count > 0 and re.search(r'\b(?:it|test)\s*\(', modified):
+    remaining_it_count = len(re.findall(r'\b(?:it|test)\s*\(', modified))
+    if removed_count > 0 and remaining_it_count >= 2:
         return modified
     return None
+
+
+def format_refinement_prompt(
+    base_prompt: str,
+    attempt_history: List[str],
+    current_instruction: str,
+    type_context: str = "",
+) -> str:
+    """Enriches the base golden prompt with a cumulative memory of previous failures and surgical feedback for the current attempt."""
+    history_block = ""
+    if attempt_history:
+        history_lines = "\n".join(f"• {h}" for h in attempt_history)
+        history_block = (
+            "\n================================================================================\n"
+            "HISTÓRICO CUMULATIVO DE FALHAS NESTA TAREFA (NÃO REPITA ESTES ERROS!):\n"
+            "================================================================================\n"
+            f"{history_lines}\n"
+        )
+
+    surgical_block = (
+        "\n================================================================================\n"
+        "DIAGNÓSTICO CIRÚRGICO E INSTRUÇÃO PARA A TENTATIVA ATUAL:\n"
+        "================================================================================\n"
+        f"{current_instruction}\n"
+    )
+
+    return f"{base_prompt}\n{history_block}{surgical_block}{type_context if type_context else ''}"
 
 
 class TaskWorker:
@@ -196,10 +261,20 @@ class TaskWorker:
         model: str = "ollama/qwen2.5-coder:14b",
         timeout_seconds: int = 360,
         min_line_coverage: float = 60.0,
+        log_level: str = "compact",
+        allow_git_commit: bool = True,
     ):
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.min_line_coverage = min_line_coverage
+        self.log_level = log_level.lower()  # 'quiet', 'compact', 'verbose'
+        self.allow_git_commit = allow_git_commit
+
+    def is_verbose(self) -> bool:
+        return self.log_level == "verbose"
+
+    def is_quiet(self) -> bool:
+        return self.log_level == "quiet"
 
     def run_command(self, cmd: list, cwd: Path, timeout: Optional[int] = None) -> Tuple[int, str, str]:
         env = os.environ.copy()
@@ -283,11 +358,13 @@ class TaskWorker:
         with open(prompt_template_path, "r", encoding="utf-8") as f:
             prompt_template = f.read()
 
-        current_prompt = prompt_template.format(
+        base_prompt = prompt_template.format(
             service_file=task.service_file,
             spec_file=task.spec_file,
             golden_template=golden_template,
-        ) + type_context
+        )
+        current_prompt = base_prompt + type_context
+        attempt_history: List[str] = []
 
         queue_manager.update_task_status(task.id, "in_progress")
         current_model = self.model
@@ -301,16 +378,20 @@ class TaskWorker:
             print(f"🔍 [REHYDRATE PRE-FLIGHT]: Running Jest on restored quarantine spec...")
             pre_code, pre_stdout, pre_stderr = self.run_command(test_cmd, cwd=project_path, timeout=60)
             if pre_code == 0:
-                line_cov = parse_line_coverage(pre_stdout, task.service_file)
-                last_passing_spec = spec_file_path.read_text(encoding="utf-8")
-                last_passing_coverage = line_cov
-                if line_cov is None or line_cov >= self.min_line_coverage:
-                    print(f"✅ [ZERO-SHOT HEALED]: Quarantined spec passed immediately after mock self-healing! (Coverage: {line_cov}%)")
-                    commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
-                    self.run_command(["git", "add", task.spec_file], cwd=project_path)
-                    self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
-                    queue_manager.update_task_status(task.id, "completed", increment_attempt=False)
-                    return True
+                restored_text = spec_file_path.read_text(encoding="utf-8")
+                pre_it_count = len(re.findall(r"\b(?:it|test)\s*\(", restored_text))
+                if pre_it_count >= 2:
+                    line_cov = parse_line_coverage(pre_stdout, task.service_file)
+                    last_passing_spec = restored_text
+                    last_passing_coverage = line_cov
+                    if line_cov is None or line_cov >= self.min_line_coverage:
+                        print(f"✅ [ZERO-SHOT HEALED]: Quarantined spec passed immediately after mock self-healing! (Coverage: {line_cov}%)")
+                        if self.allow_git_commit:
+                            commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                            self.run_command(["git", "add", task.spec_file], cwd=project_path)
+                            self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
+                        queue_manager.update_task_status(task.id, "completed", increment_attempt=False)
+                        return True
             else:
                 pre_error = (pre_stdout + "\n" + pre_stderr).strip()
                 error_traceback = pre_error
@@ -326,9 +407,10 @@ class TaskWorker:
                         if p_cov is not None and p_cov >= self.min_line_coverage:
                             print(f"✅ [ZERO-SHOT PRUNED]: Quarantined spec passed with {p_cov:.1f}% coverage after pruning broken test block!")
                             self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
-                            commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
-                            self.run_command(["git", "add", task.spec_file], cwd=project_path)
-                            self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
+                            if self.allow_git_commit:
+                                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                                self.run_command(["git", "add", task.spec_file], cwd=project_path)
+                                self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
                             queue_manager.update_task_status(task.id, "completed", increment_attempt=False)
                             return True
                         print(f"🛡️ [PRE-FLIGHT BASELINE]: Secured {last_passing_coverage:.1f}% passing baseline via auto-pruner before AI refinement.")
@@ -351,6 +433,24 @@ class TaskWorker:
                 print(f"⚡ [RESTORE] Restoring clean deterministic scaffold before attempt {attempt}...")
                 spec_file_path.write_text(initial_scaffold, encoding="utf-8")
 
+            # Log prompt context sent to model
+            if self.is_verbose():
+                print(f"📋 [PROMPT CONTEXT]: Total size {len(current_prompt)} chars (Base Template: {len(base_prompt)} chars)")
+                if attempt_history:
+                    print("🧠 [FEEDBACK REPASSADO AO MODELO]:")
+                    print("   ↳ Histórico de Falhas Anteriores:")
+                    for h in attempt_history:
+                        print(f"      • {h}")
+                    if "surgical_instruction_preview" in locals():
+                        print(f"   ↳ Instrução Cirúrgica Atual:\n{surgical_instruction_preview}")
+                else:
+                    print("🌱 [PRIMEIRA TENTATIVA]: Enviando Golden Template e scaffold inicial.")
+            elif not self.is_quiet() and attempt_history:
+                last_hist = attempt_history[-1].replace('\n', ' ')
+                if len(last_hist) > 120:
+                    last_hist = last_hist[:117] + "..."
+                print(f"🧠 [FEEDBACK]: Refinando tentativa com base em: {last_hist}")
+
             aider_cmd = [
                 "aider",
                 "--model", current_model,
@@ -366,28 +466,40 @@ class TaskWorker:
                 "--map-tokens", "0",
             ]
 
+            pre_aider_spec_hash = get_file_hash(spec_file_path)
             print(f"Calling Aider with model: {current_model}...")
             start_time = time.time()
             ret_code, stdout, stderr = self.run_command(aider_cmd, cwd=project_path)
             duration = time.time() - start_time
             print(f"Aider finished in {duration:.1f}s (Exit code: {ret_code})")
+            post_aider_spec_hash = get_file_hash(spec_file_path)
 
             # Intelligent Rate Limit (429) & Instant Dual-Cloud Failover
             combined_output = stdout + "\n" + stderr
             if any(err in combined_output for err in ["RateLimitError", "rate_limit_exceeded", "RESOURCE_EXHAUSTED", "code\": 429"]):
                 print(f"⚠️ [RATE LIMIT DETECTED on {current_model}]")
                 if current_model.startswith("groq/"):
-                    print("🔄 [INSTANT FAILOVER]: Switching immediately to Gemini (gemini/gemini-3.5-flash) to eliminate wait time!")
-                    current_model = "gemini/gemini-3.5-flash"
-                    continue
+                    current_model = "gemini/gemini-2.5-flash"
                 elif current_model.startswith("gemini/"):
-                    print("🔄 [INSTANT FAILOVER]: Switching from Gemini to local Ollama (qwen2.5-coder:14b)!")
-                    current_model = "ollama/qwen2.5-coder:14b"
-                    continue
+                    current_model = "groq/openai/gpt-oss-120b"
+                print(f"🔄 [PROVIDER ROTATION]: Failover target model: {current_model}")
+
+                if post_aider_spec_hash == pre_aider_spec_hash:
+                    print("⏩ Aider aborted before modifying spec due to rate limit. Retrying immediate failover with rotated provider...")
+                    time.sleep(8)
+                    aider_failover_cmd = list(aider_cmd)
+                    aider_failover_cmd[2] = current_model
+                    _, fo_stdout, fo_stderr = self.run_command(aider_failover_cmd, cwd=project_path)
+                    post_aider_spec_hash = get_file_hash(spec_file_path)
+                    combined_output = fo_stdout + "\n" + fo_stderr
+                    if post_aider_spec_hash == pre_aider_spec_hash:
+                        print("⚠️ Failover provider also throttled. Cooling down 15s before next attempt...")
+                        time.sleep(15)
+                        continue
+                    else:
+                        print(f"✅ Failover with {current_model} successfully modified spec! Proceeding to verification...")
                 else:
-                    print("⏳ Sleeping 20s for local queue to breathe...")
-                    time.sleep(20)
-                    continue
+                    print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
 
             # Deterministic Mechanical Sanitizer & Formatter (Zero-AI)
             if spec_file_path.exists():
@@ -412,10 +524,16 @@ class TaskWorker:
                 sut_violation = check_anti_sut_mocking(spec_content)
                 if sut_violation:
                     print(f"🛑 [QUALITY GATE REJECTION]: {sut_violation}")
-                    current_prompt = (
+                    attempt_history.append(
+                        f"Tentativa {attempt}: Violação Khorikov SUT - método do próprio serviço foi mockado. NUNCA mocke o método que está sendo testado!"
+                    )
+                    sut_instruction = (
                         f"{sut_violation}\n\n"
-                        f"Por favor, remova qualquer `spyOn` na própria instância do serviço. "
-                        f"Chame o método real do serviço e mocke apenas os repositórios/serviços injetados."
+                        f"AÇÃO OBRIGATÓRIA: Remova qualquer `spyOn` ou `jest.fn()` na própria instância do serviço `{task.service_file}`. "
+                        f"Chame o método real do serviço com `await service.<metodo>(...)` e mocke EXCLUSIVAMENTE os repositórios/serviços injetados no construtor."
+                    )
+                    current_prompt = format_refinement_prompt(
+                        base_prompt, attempt_history, sut_instruction, type_context
                     )
                     queue_manager.update_task_status(
                         task.id, "in_progress", error_log=sut_violation, increment_attempt=True
@@ -428,46 +546,110 @@ class TaskWorker:
             test_code, test_stdout, test_stderr = self.run_command(test_cmd, cwd=project_path, timeout=60)
 
             if test_code == 0:
-                # Check line coverage if Jest/coverage was run
+                spec_now = spec_file_path.read_text(encoding="utf-8") if spec_file_path.exists() else ""
+                it_count = len(re.findall(r"\b(?:it|test)\s*\(", spec_now))
+                todo_count = len(re.findall(r"//\s*TODO:", spec_now))
+
+                if it_count <= 1:
+                    methods_in_spec = re.findall(r"describe\('(\w+)'", spec_now)
+                    methods_list = ", ".join(methods_in_spec) if methods_in_spec else "todos os métodos públicos"
+                    shallow_msg = (
+                        f"🛑 SUÍTE SUPERFICIAL REJEITADA: O arquivo `{task.spec_file}` contém apenas {it_count} teste "
+                        f"(`should be defined`) e {todo_count} bloco(s) `// TODO`.\n\n"
+                        f"AÇÃO OBRIGATÓRIA:\n"
+                        f"1. Você DEVE substituir IMEDIATAMENTE todos os comentários `// TODO` dentro de cada bloco `describe()` por testes reais `it('should ...', async () => {{ ... }})`.\n"
+                        f"2. Métodos a serem testados: `{methods_list}`.\n"
+                        f"3. Para cada método, crie pelo menos 1 teste de sucesso (chamando `await service.<metodo>(...)` e verificando o retorno) e 1 teste com filtros/tratamento de erro.\n"
+                        f"4. NUNCA deixe nenhum bloco `describe` vazio sem blocos `it(...)`."
+                    )
+                    print(f"🛑 [SHALLOW SPEC REJECTED]: Only {it_count} test found in {task.spec_file}. Demanding implementation of {methods_list}.")
+                    attempt_history.append(
+                        f"Tentativa {attempt}: Teste superficial rejeitado com apenas {it_count} teste. Falta implementar testes reais para: {methods_list}."
+                    )
+                    surgical_instruction_preview = shallow_msg
+                    current_prompt = format_refinement_prompt(
+                        base_prompt, attempt_history, shallow_msg, type_context
+                    )
+                    continue
+
+                # Check line coverage via text table + coverage-final.json reader
                 line_cov = parse_line_coverage(test_stdout, task.service_file)
+                cov_details = None
+                try:
+                    from pipeline.auditor import StaticQualityAuditor
+                    cov_details = StaticQualityAuditor(project_path).get_file_coverage_from_json(service_file_path)
+                    if line_cov is None and cov_details:
+                        line_cov = cov_details["stmt_pct"]
+                except Exception:
+                    pass
+
                 if spec_file_path.exists():
-                    last_passing_spec = spec_file_path.read_text(encoding="utf-8")
+                    last_passing_spec = spec_now
                     last_passing_coverage = line_cov
 
-                if line_cov is not None and line_cov < self.min_line_coverage:
+                low_branch = bool(
+                    cov_details
+                    and cov_details["total_branches"] >= 2
+                    and cov_details["branch_pct"] < 25.0
+                )
+                if (line_cov is not None and line_cov < self.min_line_coverage) or low_branch:
+                    uncovered_info = ""
+                    if cov_details:
+                        fns = ", ".join(cov_details["uncovered_functions"]) or "nenhum método inteiro"
+                        rngs = cov_details["uncovered_ranges_str"]
+                        uncovered_info = (
+                            f"\n- **Métodos ainda não executados (0%):** `{fns}`\n"
+                            f"- **Linhas exatas sem cobertura no arquivo `{task.service_file}`:** `{rngs}`\n"
+                            f"- **Cobertura de branches (if/else):** `{cov_details['branch_pct']:.1f}% ({cov_details['covered_branches']}/{cov_details['total_branches']})`\n"
+                        )
                     cov_msg = (
-                        f"COBERTURA INSUFICIENTE: O teste passou no Jest, mas cobriu apenas {line_cov:.1f}% das linhas "
-                        f"(mínimo exigido: {self.min_line_coverage}%). Você precisa exercitar a lógica real dos métodos, "
-                        f"incluindo os caminhos de sucesso e de tratamento de exceções (sad path)."
+                        f"COBERTURA INSUFICIENTE: O teste passou no Jest, mas a cobertura real de execução "
+                        f"(Linhas: {line_cov:.1f}%, meta >= {self.min_line_coverage}%) ou de branches (if/else) é insuficiente.{uncovered_info}"
                     )
-                    current_prompt = (
+                    attempt_history.append(
+                        f"Tentativa {attempt}: Cobertura insuficiente ({line_cov:.1f}%). Meta é >= {self.min_line_coverage}%."
+                    )
+                    cov_instruction = (
                         f"{cov_msg}\n\n"
-                        f"ATENÇÃO: A cobertura está baixa porque há métodos do serviço `{task.service_file}` que ainda não foram testados.\n"
-                        f"Por favor, implemente testes dentro de TODOS os blocos `describe` restantes em `{task.spec_file}` (caminhos de sucesso e lançamento de exceções) para atingir mais de 60% de cobertura de linhas."
+                        f"Por favor, adicione novos blocos `it()` em `{task.spec_file}` que exercitem especificamente "
+                        f"as linhas e métodos listados acima (incluindo cenários de sucesso e lançamento de exceções)."
+                    )
+                    surgical_instruction_preview = cov_instruction
+                    current_prompt = format_refinement_prompt(
+                        base_prompt, attempt_history, cov_instruction, type_context
                     )
                     continue
 
                 cov_str = f" (Line Coverage: {line_cov:.1f}%)" if line_cov is not None else ""
                 print(f"✅ SUCCESS! High-quality unit tests verified for {task.service_file}{cov_str}")
 
-                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
-                self.run_command(["git", "add", task.spec_file], cwd=project_path)
-                self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
+                if self.allow_git_commit:
+                    commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                    self.run_command(["git", "add", task.spec_file], cwd=project_path)
+                    self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
 
                 queue_manager.update_task_status(task.id, "completed", increment_attempt=True)
                 return True
             else:
                 error_traceback = (test_stdout + "\n" + test_stderr).strip()
-                print(f"❌ Test verification failed on attempt {attempt}.")
-                print(f"Error summary:\n{error_traceback[-500:]}\n")
+                if not self.is_quiet():
+                    print(f"❌ Test verification failed on attempt {attempt} (Exit code: {test_code}).")
+                    if self.is_verbose():
+                        print("===================== [VERIFICATION ERROR LOG (VERBOSE)] =====================")
+                        print(error_traceback[-2500:] if len(error_traceback) > 2500 else error_traceback)
+                        print("==============================================================================\n")
+                    else:
+                        # Compact mode: print only the relevant failure message or last lines
+                        compact_err = error_traceback[-400:].strip()
+                        print(f"   ↳ [ERROR RESUMO]: {compact_err}\n")
 
                 # Repetition Circuit Breaker
                 if previous_error and error_traceback[-250:] == previous_error[-250:]:
-                    print(f"⚡ [CIRCUIT BREAKER]: Identical error repeated on attempt {attempt}. Escalating model to break loop...")
+                    print(f"⚡ [CIRCUIT BREAKER]: Identical error repeated on attempt {attempt}. Escalating provider to break loop...")
                     if current_model.startswith("groq/"):
-                        current_model = "gemini/gemini-3.5-flash"
+                        current_model = "gemini/gemini-2.5-flash"
                     elif current_model.startswith("gemini/"):
-                        current_model = "ollama/qwen2.5-coder:14b"
+                        current_model = "groq/openai/gpt-oss-120b"
                 previous_error = error_traceback
 
                 queue_manager.update_task_status(
@@ -477,13 +659,19 @@ class TaskWorker:
                     increment_attempt=True,
                 )
 
-                current_prompt = (
+                attempt_history.append(
+                    f"Tentativa {attempt}: Falha de execução no Jest:\n  ↳ {error_traceback[-250:].strip()}"
+                )
+                jest_instruction = (
                     f"O teste unitário em `{task.spec_file}` falhou com o seguinte erro:\n\n"
                     f"```\n{error_traceback[-1500:]}\n```\n\n"
                     f"Por favor, ajuste EXCLUSIVAMENTE o arquivo `{task.spec_file}` para corrigir os mocks ou asserções e fazer todos os testes passarem. "
                     f"Use `as any` em objetos parciais de mock se houver erro TS2345/TS2339. "
                     f"Lembre-se: NÃO modifique `{task.service_file}` e NUNCA mocke o próprio serviço."
-                    + type_context
+                )
+                surgical_instruction_preview = jest_instruction
+                current_prompt = format_refinement_prompt(
+                    base_prompt, attempt_history, jest_instruction, type_context
                 )
 
         print(f"🚨 Exhausted all {task.max_attempts} attempts for {task.id}.")
@@ -513,9 +701,10 @@ class TaskWorker:
             spec_file_path.write_text(last_passing_spec, encoding="utf-8")
             self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
             commit_suffix = "" if last_passing_coverage >= self.min_line_coverage else f" (partial coverage: {last_passing_coverage:.1f}%)"
-            commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}{commit_suffix}"
-            self.run_command(["git", "add", task.spec_file], cwd=project_path)
-            self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
+            if self.allow_git_commit:
+                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}{commit_suffix}"
+                self.run_command(["git", "add", task.spec_file], cwd=project_path)
+                self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
             queue_manager.update_task_status(task.id, "completed", increment_attempt=True)
             return True
 
@@ -527,7 +716,8 @@ class TaskWorker:
             quarantine_file.write_text(spec_file_path.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"📦 [QUARANTINE]: Saved unverified spec to {quarantine_file}")
             spec_file_path.unlink()
-        self.run_command(["git", "restore", "--staged", task.spec_file], cwd=project_path)
+        if self.allow_git_commit:
+            self.run_command(["git", "restore", "--staged", task.spec_file], cwd=project_path)
 
         last_error = error_traceback[-500:] if "error_traceback" in locals() else (cov_msg if "cov_msg" in locals() else "Unknown failure")
         queue_manager.update_task_status(

@@ -182,13 +182,54 @@ class NestJSScaffolder:
                     f"        }},",
                 ])
 
-        # Generate describe block for each public method
+        # Generate describe block for each public method with concrete it() test skeletons
         method_blocks = []
         for m in methods:
             m_name = m["name"]
+            if m_name == class_name:
+                continue
+            
+            # Determine if method returns void
+            ret_type = m.get("return_type", "").lower()
+            is_void = "void" in ret_type or "promise<void>" in ret_type
+
+            # Extract mock arguments based on parameter count and names
+            raw_params = m.get("params", "")
+            param_tokens = [p.strip() for p in raw_params.split(",") if p.strip()]
+            arg_list = []
+            for p in param_tokens:
+                p_lower = p.lower()
+                if "id" in p_lower and "dto" not in p_lower:
+                    arg_list.append("'test-id' as any")
+                elif "dto" in p_lower or "data" in p_lower or "points" in p_lower:
+                    arg_list.append("{ points: [{ y: 10 }] } as any")
+                elif "bool" in p_lower or "is" in p_lower or "has" in p_lower:
+                    arg_list.append("true as any")
+                elif "num" in p_lower or "page" in p_lower or "limit" in p_lower or "count" in p_lower:
+                    arg_list.append("1 as any")
+                else:
+                    arg_list.append("'test-val' as any")
+
+            call_args = ", ".join(arg_list)
+
+            # Choose assertion based on return type
+            if is_void:
+                assert_line = "      // Method returns void; verify execution completes without throwing\n      expect(result).toBeUndefined();"
+            else:
+                assert_line = "      expect(result).toBeDefined();"
+
             method_blocks.extend([
                 f"  describe('{m_name}', () => {{",
-                f"    // TODO: Implement Given-When-Then test cases for {m_name}",
+                f"    it('should execute {m_name} successfully', async () => {{",
+                f"      // Given (Arrange)",
+                f"      // Configure injected repository/service mocks if needed",
+                f"",
+                f"      // When (Act)",
+                f"      const result = await service.{m_name}({call_args});",
+                f"",
+                f"      // Then (Assert)",
+                f"{assert_line}",
+                f"    }});",
                 f"  }});",
                 f"",
             ])

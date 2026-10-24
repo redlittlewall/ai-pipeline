@@ -22,13 +22,27 @@ class ProjectScanner:
 
         self.source_root = self.profile.get_source_root(self.project_path)
 
-    def scan_services(self, domain_filter: Optional[List[str]] = None, include_broken: bool = False) -> List[Task]:
+    def scan_services(
+        self,
+        domain_filter: Optional[List[str]] = None,
+        include_broken: bool = False,
+        include_shallow: bool = False,
+        layers: Optional[List[str]] = None,
+    ) -> List[Task]:
         if not self.source_root.exists():
             raise FileNotFoundError(f"Source directory not found: {self.source_root}")
 
         tasks: List[Task] = []
         task_counter = 1
         service_pattern = self.profile.get_service_file_pattern()
+        active_layers = layers or ["services"]
+
+        layer_patterns = {
+            "services": service_pattern,
+            "workflows": re.compile(r".*workflow\.ts$", re.IGNORECASE),
+            "controllers": re.compile(r".*controller\.ts$", re.IGNORECASE),
+            "guards": re.compile(r".*(?:guard|interceptor|pipe|middleware)\.ts$", re.IGNORECASE),
+        }
 
         # Find all source files recursively
         extension = "*.dart" if self.profile.name == "flutter" else "*.ts"
@@ -37,8 +51,15 @@ class ProjectScanner:
             if "spec" in file_path.name.lower() or "test" in file_path.name.lower():
                 continue
 
-            match = service_pattern.match(file_path.name)
-            if not match:
+            if "all" in active_layers:
+                matched = any(p.match(file_path.name) for p in layer_patterns.values())
+            else:
+                matched = any(
+                    layer_patterns[layer].match(file_path.name)
+                    for layer in active_layers
+                    if layer in layer_patterns
+                )
+            if not matched:
                 continue
 
             relative_path = file_path.relative_to(self.project_path)
@@ -67,20 +88,52 @@ class ProjectScanner:
             legacy_spec_in_test = self.project_path / "test" / relative_path.parent / expected_spec.name
 
             if expected_spec.exists() or legacy_spec_in_test.exists():
-                if not include_broken:
-                    continue
-                import subprocess
                 spec_to_check = expected_spec if expected_spec.exists() else legacy_spec_in_test
                 rel_spec = str(spec_to_check.relative_to(self.project_path))
-                cmd = self.profile.get_test_command(rel_spec)
-                res = subprocess.run(cmd, cwd=str(self.project_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if res.returncode == 0:
-                    continue
-                print(f"⚠️ [BROKEN SPEC DETECTED]: {rel_spec} failed verification. Queueing for autonomous repair...")
-                quarantine_dir = Path(__file__).resolve().parent.parent / "reports" / "quarantine" / module_name
-                quarantine_dir.mkdir(parents=True, exist_ok=True)
-                (quarantine_dir / expected_spec.name).write_text(spec_to_check.read_text(encoding="utf-8"), encoding="utf-8")
-                spec_to_check.unlink()
+                is_requeued = False
+
+                if include_shallow:
+                    try:
+                        spec_code = spec_to_check.read_text(encoding="utf-8")
+                        it_count = len(re.findall(r"\b(?:it|test)\s*\(", spec_code))
+                        todo_count = len(re.findall(r"//\s*TODO:", spec_code))
+                        if it_count <= 1 or todo_count > 0:
+                            print(
+                                f"🔍 [SHALLOW SPEC DETECTED]: {rel_spec} (it={it_count}, TODOs={todo_count}). "
+                                f"Queueing for deep test expansion..."
+                            )
+                            quarantine_file = (
+                                Path(__file__).resolve().parent.parent
+                                / "reports"
+                                / "quarantine"
+                                / module_name
+                                / expected_spec.name
+                            )
+                            # Remove shallow quarantine copy so worker generates fresh Proxy-QueryBuilder scaffold
+                            if quarantine_file.exists():
+                                q_it_count = len(
+                                    re.findall(r"\b(?:it|test)\s*\(", quarantine_file.read_text(encoding="utf-8"))
+                                )
+                                if q_it_count <= 1:
+                                    quarantine_file.unlink()
+                            spec_to_check.unlink()
+                            is_requeued = True
+                    except Exception:
+                        pass
+
+                if not is_requeued:
+                    if not include_broken:
+                        continue
+                    import subprocess
+                    cmd = self.profile.get_test_command(rel_spec)
+                    res = subprocess.run(cmd, cwd=str(self.project_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if res.returncode == 0:
+                        continue
+                    print(f"⚠️ [BROKEN SPEC DETECTED]: {rel_spec} failed verification. Queueing for autonomous repair...")
+                    quarantine_dir = Path(__file__).resolve().parent.parent / "reports" / "quarantine" / module_name
+                    quarantine_dir.mkdir(parents=True, exist_ok=True)
+                    (quarantine_dir / expected_spec.name).write_text(spec_to_check.read_text(encoding="utf-8"), encoding="utf-8")
+                    spec_to_check.unlink()
 
             # Skip dead or completely commented-out files
             try:
