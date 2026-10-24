@@ -6,6 +6,15 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from pipeline.profiles.registry import registry
+from pipeline.quality_score import (
+    CoverageMetrics,
+    NegativeBranchAnalysis,
+    QualityConfidenceScore,
+    _format_line_ranges,
+    analyze_negative_branches,
+    calculate_quality_confidence_score,
+    parse_coverage_final_json,
+)
 from pipeline.queue_manager import QueueManager, Task
 
 
@@ -743,6 +752,7 @@ class TaskWorker:
         previous_error: Optional[str] = None
         last_passing_spec: Optional[str] = None
         last_passing_coverage: Optional[float] = None
+        last_passing_score: Optional[QualityConfidenceScore] = None
 
         # Pre-flight check if rehydrated from quarantine
         if rehydrated and spec_file_path.exists():
@@ -753,17 +763,30 @@ class TaskWorker:
                 restored_text = spec_file_path.read_text(encoding="utf-8")
                 pre_it_count = len(re.findall(r"\b(?:it|test)\s*\(", restored_text))
                 if pre_it_count >= 2:
-                    line_cov = parse_line_coverage(pre_stdout, task.service_file)
+                    cov_m = parse_coverage_final_json(project_path, task.service_file)
+                    line_cov = cov_m.line_pct if cov_m else parse_line_coverage(pre_stdout, task.service_file)
+                    branch_cov = cov_m.branch_pct if cov_m else None
+                    svc_text = service_file_path.read_text(encoding="utf-8") if service_file_path.exists() else ""
+                    pre_score = calculate_quality_confidence_score(
+                        line_coverage=line_cov,
+                        branch_coverage=branch_cov,
+                        negative_analysis=analyze_negative_branches(svc_text, restored_text),
+                        sut_violation=check_anti_sut_mocking(restored_text),
+                        attempt=1,
+                    )
                     last_passing_spec = restored_text
                     last_passing_coverage = line_cov
-                    if line_cov is None or line_cov >= self.min_line_coverage:
-                        print(f"✅ [REHYDRATE SUCCESS]: Quarantined spec passed immediately! (Coverage: {line_cov}%)")
+                    last_passing_score = pre_score
+                    if pre_score.passed:
+                        print(f"✅ [REHYDRATE SUCCESS]: Quarantined spec passed with Score {pre_score.total_score:.1f}/100! (Lines: {line_cov}%)")
                         if self.allow_git_commit:
-                            commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                            commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {pre_score.total_score:.0f})"
                             self.run_command(["git", "add", task.spec_file], cwd=project_path)
                             self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
                         queue_manager.update_task_status(task.id, "completed", increment_attempt=False)
                         return True
+                    else:
+                        print(f"⚠️ [REHYDRATE WARNING]: Quarantined spec passed Jest but Quality Score {pre_score.total_score:.1f}/100 < 70.0. Proceeding to AI refinement...")
             else:
                 pre_error = (pre_stdout + "\n" + pre_stderr).strip()
                 error_traceback = pre_error
@@ -773,14 +796,25 @@ class TaskWorker:
                     spec_file_path.write_text(pruned_pre, encoding="utf-8")
                     p_code, p_stdout, _ = self.run_command(test_cmd, cwd=project_path, timeout=60)
                     if p_code == 0:
-                        p_cov = parse_line_coverage(p_stdout, task.service_file)
+                        cov_m = parse_coverage_final_json(project_path, task.service_file)
+                        p_cov = cov_m.line_pct if cov_m else parse_line_coverage(p_stdout, task.service_file)
+                        p_br = cov_m.branch_pct if cov_m else None
+                        svc_text = service_file_path.read_text(encoding="utf-8") if service_file_path.exists() else ""
+                        p_score = calculate_quality_confidence_score(
+                            line_coverage=p_cov,
+                            branch_coverage=p_br,
+                            negative_analysis=analyze_negative_branches(svc_text, pruned_pre),
+                            sut_violation=check_anti_sut_mocking(pruned_pre),
+                            attempt=1,
+                        )
                         last_passing_spec = pruned_pre
                         last_passing_coverage = p_cov if p_cov is not None else 25.0
-                        if p_cov is not None and p_cov >= self.min_line_coverage:
-                            print(f"✅ [ZERO-SHOT PRUNED]: Quarantined spec passed with {p_cov:.1f}% coverage after pruning broken test block!")
+                        last_passing_score = p_score
+                        if p_score.passed:
+                            print(f"✅ [ZERO-SHOT PRUNED]: Quarantined spec passed with Score {p_score.total_score:.1f}/100 after pruning broken test block!")
                             self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
                             if self.allow_git_commit:
-                                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {p_score.total_score:.0f})"
                                 self.run_command(["git", "add", task.spec_file], cwd=project_path)
                                 self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
                             queue_manager.update_task_status(task.id, "completed", increment_attempt=False)
@@ -964,59 +998,84 @@ class TaskWorker:
                     )
                     continue
 
-                # Check line coverage via text table + coverage-final.json reader
-                line_cov = parse_line_coverage(test_stdout, task.service_file)
-                cov_details = None
-                try:
-                    from pipeline.auditor import StaticQualityAuditor
-                    cov_details = StaticQualityAuditor(project_path).get_file_coverage_from_json(service_file_path)
-                    if line_cov is None and cov_details:
-                        line_cov = cov_details["stmt_pct"]
-                except Exception:
-                    pass
+                # Check line coverage via coverage-final.json reader (with text table fallback)
+                cov_metrics = parse_coverage_final_json(project_path, task.service_file)
+                line_cov = cov_metrics.line_pct if cov_metrics else parse_line_coverage(test_stdout, task.service_file)
+                branch_cov = cov_metrics.branch_pct if cov_metrics else None
+
+                service_content = service_file_path.read_text(encoding="utf-8") if service_file_path.exists() else ""
+                neg_analysis = analyze_negative_branches(service_content, spec_now)
+                sut_violation = check_anti_sut_mocking(spec_now)
+
+                score = calculate_quality_confidence_score(
+                    line_coverage=line_cov,
+                    branch_coverage=branch_cov,
+                    negative_analysis=neg_analysis,
+                    sut_violation=sut_violation,
+                    attempt=attempt,
+                )
 
                 if spec_file_path.exists():
                     last_passing_spec = spec_now
                     last_passing_coverage = line_cov
+                    last_passing_score = score
 
-                low_branch = bool(
-                    cov_details
-                    and cov_details["total_branches"] >= 2
-                    and cov_details["branch_pct"] < 25.0
-                )
-                if (line_cov is not None and line_cov < self.min_line_coverage) or low_branch:
-                    uncovered_info = ""
-                    if cov_details:
-                        fns = ", ".join(cov_details["uncovered_functions"]) or "nenhum método inteiro"
-                        rngs = cov_details["uncovered_ranges_str"]
-                        uncovered_info = (
-                            f"\n- **Métodos ainda não executados (0%):** `{fns}`\n"
-                            f"- **Linhas exatas sem cobertura no arquivo `{task.service_file}`:** `{rngs}`\n"
-                            f"- **Cobertura de branches (if/else):** `{cov_details['branch_pct']:.1f}% ({cov_details['covered_branches']}/{cov_details['total_branches']})`\n"
-                        )
-                    cov_msg = (
-                        f"COBERTURA INSUFICIENTE: O teste passou no Jest, mas a cobertura real de execução "
-                        f"(Linhas: {line_cov:.1f}%, meta >= {self.min_line_coverage}%) ou de branches (if/else) é insuficiente.{uncovered_info}"
+                if not score.passed:
+                    reasons_str = "; ".join(score.details.get("failure_reasons", []))
+                    print(
+                        f"🛑 [QUALITY GATE REJECTION]: Jest passou (código 0), mas a suíte foi REPROVADA "
+                        f"no Quality Gate com score {score.total_score:.1f}/100 (mínimo exigido: 70.0).\n"
+                        f"   ↳ {score.summary()}\n"
+                        f"   ↳ Motivos: {reasons_str}"
                     )
                     attempt_history.append(
-                        f"Tentativa {attempt}: Cobertura insuficiente ({line_cov:.1f}%). Meta é >= {self.min_line_coverage}%."
+                        f"Tentativa {attempt}: Jest passou, mas o Quality Confidence Score foi {score.total_score:.1f}/100 (< 70). Motivos: {reasons_str}"
                     )
-                    cov_instruction = (
-                        f"{cov_msg}\n\n"
-                        f"Por favor, adicione novos blocos `it()` em `{task.spec_file}` que exercitem especificamente "
-                        f"as linhas e métodos listados acima (incluindo cenários de sucesso e lançamento de exceções)."
+
+                    # Build targeted surgical instructions based on which pillar failed
+                    guidance = []
+                    if score.coverage_score < 40.0:
+                        uncovered_info = ""
+                        if cov_metrics and cov_metrics.uncovered_lines:
+                            uncovered_info = f" Linhas descobertas: {_format_line_ranges(cov_metrics.uncovered_lines)}."
+                        guidance.append(
+                            f"1. Aumente a cobertura de linhas (atual: {line_cov:.1f}%, meta >= 75%).{uncovered_info}"
+                        )
+                    if not neg_analysis.has_negative_branches:
+                        guidance.append(
+                            f"2. OBRIGATÓRIO (Negative Branch Enforcement): Adicione testes verificando cenários de erro "
+                            f"com `await expect(service.<metodo>(...)).rejects.toThrow()` para os seguintes métodos públicos que lançam exceções: "
+                            f"`{', '.join(neg_analysis.uncovered_methods)}`."
+                        )
+                    if score.anti_sut_score < 20.0:
+                        guidance.append(
+                            f"3. NUNCA mocke a própria classe/método do serviço sob teste. Mocke apenas as dependências injetadas."
+                        )
+
+                    gate_instruction = (
+                        f"O teste unitário em `{task.spec_file}` passou na execução do Jest, mas foi REPROVADO no Quality Gate com score {score.total_score:.1f}/100 (mínimo 70.0).\n\n"
+                        f"{score.summary()}\n\n"
+                        f"AÇÕES OBRIGATÓRIAS PARA ATINGIR O SCORE MÍNIMO:\n"
+                        + "\n".join(guidance)
+                        + f"\n\nPor favor, expanda `{task.spec_file}` atendendo aos pontos acima mantendo os testes que já passam."
                     )
-                    surgical_instruction_preview = cov_instruction
+                    surgical_instruction_preview = gate_instruction
                     current_prompt = format_refinement_prompt(
-                        base_prompt, attempt_history, cov_instruction, type_context
+                        base_prompt, attempt_history, gate_instruction, type_context
+                    )
+                    queue_manager.update_task_status(
+                        task.id,
+                        "in_progress",
+                        error_log=f"Quality Gate Score {score.total_score:.1f}/100 (< 70): {reasons_str}",
+                        increment_attempt=True,
                     )
                     continue
 
-                cov_str = f" (Line Coverage: {line_cov:.1f}%)" if line_cov is not None else ""
-                print(f"✅ SUCCESS! High-quality unit tests verified for {task.service_file}{cov_str}")
+                print(f"✅ SUCCESS! High-quality unit tests verified for {task.service_file}")
+                print(f"   ↳ {score.summary()}")
 
                 if self.allow_git_commit:
-                    commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}"
+                    commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {score.total_score:.0f})"
                     self.run_command(["git", "add", task.spec_file], cwd=project_path)
                     self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
 
@@ -1105,40 +1164,64 @@ class TaskWorker:
                 test_cmd = profile.get_test_command(task.spec_file, service_file=task.service_file)
                 p_code, p_stdout, _ = self.run_command(test_cmd, cwd=project_path, timeout=60)
                 if p_code == 0:
-                    p_cov = parse_line_coverage(p_stdout, task.service_file)
-                    print(f"✅ [AUTO-PRUNER]: Salvaged passing test suite! (Line Coverage: {p_cov}%)")
-                    last_passing_spec = pruned_spec
-                    last_passing_coverage = p_cov if p_cov is not None else 25.0
+                    cov_m = parse_coverage_final_json(project_path, task.service_file)
+                    p_cov = cov_m.line_pct if cov_m else parse_line_coverage(p_stdout, task.service_file)
+                    p_br = cov_m.branch_pct if cov_m else None
+                    svc_text = service_file_path.read_text(encoding="utf-8") if service_file_path.exists() else ""
+                    p_score = calculate_quality_confidence_score(
+                        line_coverage=p_cov,
+                        branch_coverage=p_br,
+                        negative_analysis=analyze_negative_branches(svc_text, pruned_spec),
+                        sut_violation=check_anti_sut_mocking(pruned_spec),
+                        attempt=task.max_attempts,
+                    )
+                    if p_score.passed:
+                        print(f"✅ [AUTO-PRUNER]: Salvaged passing test suite with Score {p_score.total_score:.1f}/100!")
+                        last_passing_spec = pruned_spec
+                        last_passing_coverage = p_cov
+                        last_passing_score = p_score
+                    else:
+                        print(f"⚠️ [AUTO-PRUNER]: Pruned test passed Jest but Quality Score {p_score.total_score:.1f} < 70.")
+                        spec_file_path.write_text(original_spec, encoding="utf-8")
                 else:
-                    # Restore unpruned spec for quarantine backup if pruning didn't make it green
                     spec_file_path.write_text(original_spec, encoding="utf-8")
 
-        # Preservation Strategy 1: Preserve partial passing tests
-        if last_passing_spec and last_passing_coverage is not None and last_passing_coverage >= 20.0:
-            cov_label = f" (Line Coverage: {last_passing_coverage:.1f}%)" if last_passing_coverage >= self.min_line_coverage else f" (partial coverage: {last_passing_coverage:.1f}%)"
-            print(f"🛡️ [PRESERVATION]: Tests pass in Jest with {last_passing_coverage:.1f}% coverage. Preserving test suite instead of discarding!")
+        # Preservation Strategy 1: Preserve verified test suite ONLY if Quality Score >= 70
+        if last_passing_spec and "last_passing_score" in locals() and last_passing_score and last_passing_score.passed:
+            print(f"🛡️ [PRESERVATION]: Preserving verified test suite with Score {last_passing_score.total_score:.1f}/100.")
             spec_file_path.write_text(last_passing_spec, encoding="utf-8")
             self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
-            commit_suffix = "" if last_passing_coverage >= self.min_line_coverage else f" (partial coverage: {last_passing_coverage:.1f}%)"
             if self.allow_git_commit:
-                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem}{commit_suffix}"
+                commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} (Score: {last_passing_score.total_score:.0f})"
                 self.run_command(["git", "add", task.spec_file], cwd=project_path)
                 self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
             queue_manager.update_task_status(task.id, "completed", increment_attempt=True)
             return True
 
-        # Preservation Strategy 2: Quarantine failed spec for human review
+        # Preservation Strategy 2: Quarantine failed / sub-threshold spec for human review
+        # (REGRA DE BLOQUEIO: Suítes com score < 70 são enviadas para quarentena mesmo se o Jest sair com código 0)
         quarantine_dir = Path(__file__).resolve().parent.parent / "reports" / "quarantine" / task.module_name
         quarantine_dir.mkdir(parents=True, exist_ok=True)
+        score_info = f" (Score: {last_passing_score.total_score:.1f}/100 < 70)" if "last_passing_score" in locals() and last_passing_score else ""
         if spec_file_path.exists():
             quarantine_file = quarantine_dir / spec_file_path.name
             quarantine_file.write_text(spec_file_path.read_text(encoding="utf-8"), encoding="utf-8")
-            print(f"📦 [QUARANTINE]: Saved unverified spec to {quarantine_file}")
+            print(f"📦 [QUARANTINE]: Saved unverified / sub-threshold spec to {quarantine_file}{score_info}")
             spec_file_path.unlink()
+        elif last_passing_spec:
+            quarantine_file = quarantine_dir / spec_file_path.name
+            quarantine_file.write_text(last_passing_spec, encoding="utf-8")
+            print(f"📦 [QUARANTINE]: Saved passing but sub-threshold spec to {quarantine_file}{score_info}")
+
         if self.allow_git_commit:
             self.run_command(["git", "restore", "--staged", task.spec_file], cwd=project_path)
 
-        last_error = error_traceback[-500:] if "error_traceback" in locals() else (cov_msg if "cov_msg" in locals() else "Unknown failure")
+        if "last_passing_score" in locals() and last_passing_score and not last_passing_score.passed:
+            reasons = "; ".join(last_passing_score.details.get("failure_reasons", []))
+            last_error = f"Quality Confidence Score {last_passing_score.total_score:.1f}/100 reprovado (< 70): {reasons}"
+        else:
+            last_error = error_traceback[-500:] if "error_traceback" in locals() else "Unknown failure"
+
         queue_manager.update_task_status(
             task.id,
             "failed",
