@@ -29,8 +29,68 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-25T01:48:16.013568+00:00",
       "sha256": "9cb7edfca9337ac8d16f0ff4d0ffc4c4a98e03d6f5907e2c3262474929b2d6fc"
+    },
+    "admin/ArtistApproval.service.spec.ts": {
+      "spec_file": "admin/ArtistApproval.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/ArtistApproval.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 94.59,
+      "archived_at": "2026-10-25T04:42:14.625200+00:00",
+      "sha256": "ce39a916a20a58c411f379a05af45db2aa0c69a51a223e921d62c0cac8293f40"
+    },
+    "admin/DashboardCreatedUser.service.spec.ts": {
+      "spec_file": "admin/DashboardCreatedUser.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/dashboard/DashboardCreatedUser.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 94.12,
+      "archived_at": "2026-10-25T06:55:56.032802+00:00",
+      "sha256": "d1484495977cdbdda29131bcbe028be1a851bbaa3e75854d9b28b35f95298880"
+    },
+    "admin/GetHashtagsByStatus.service.spec.ts": {
+      "spec_file": "admin/GetHashtagsByStatus.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/hashtag/GetHashtagsByStatus.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 85.71,
+      "archived_at": "2026-10-25T06:58:03.409912+00:00",
+      "sha256": "b4d89eaba8269f69dbd463c6c7c8aff5403eb0b222dcfd1ec30b28226f91ba37"
+    },
+    "admin/AdminFirebaseScripts.service.spec.ts": {
+      "spec_file": "admin/AdminFirebaseScripts.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/scripts/AdminFirebaseScripts.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 80.0,
+      "archived_at": "2026-10-25T06:58:50.512391+00:00",
+      "sha256": "874b16d3df1e63a3c14035607acfb9009eb96daf1a581fbb76618eed4d899255"
+    },
+    "admin/ImportFirebaseUsers.service.spec.ts": {
+      "spec_file": "admin/ImportFirebaseUsers.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/scripts/ImportFirebaseUsers.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-25T06:59:16.724101+00:00",
+      "sha256": "c13512c699cd5df1ddbe043f966e4a50ffd024e96b406ade97fbe2ce2eebd4db"
+    },
+    "ai/AiCatalog.service.spec.ts": {
+      "spec_file": "ai/AiCatalog.service.spec.ts",
+      "module": "ai",
+      "service_file": "src/modules/ai/AiCatalog.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 93.56,
+      "archived_at": "2026-10-25T07:00:05.757915+00:00",
+      "sha256": "4677406f0efcda547e3638185ac6be778da25eadfd9c16d0daf2fa2892f9e7ab"
     }
   },
-  "updated_at": "2026-10-25T01:48:16.013568+00:00",
-  "total_count": 3
+  "updated_at": "2026-10-25T07:00:05.757987+00:00",
+  "total_count": 9
 }
