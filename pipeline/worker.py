@@ -5,6 +5,7 @@ import re
 import subprocess
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from pipeline.ai_monitor import AIMonitor, RateLimitInfo
 from pipeline.dataset_archiver import archive_golden_spec
 from pipeline.profiles.registry import registry
 from pipeline.quality_score import (
@@ -647,6 +648,7 @@ class TaskWorker:
         allow_git_commit: bool = True,
         allow_model_escalation: bool = True,
         golden_dataset_dir: Optional[Path] = None,
+        ai_monitor: Optional[AIMonitor] = None,
     ):
         self.model = model
         self.timeout_seconds = timeout_seconds
@@ -655,6 +657,7 @@ class TaskWorker:
         self.allow_git_commit = allow_git_commit
         self.allow_model_escalation = allow_model_escalation
         self.golden_dataset_dir = golden_dataset_dir
+        self.ai_monitor = ai_monitor or AIMonitor.get_instance()
         self.last_quality_score: Optional[QualityConfidenceScore] = None
 
     def is_verbose(self) -> bool:
@@ -758,6 +761,7 @@ class TaskWorker:
         current_model = self.model
         if current_model in ("gemini-2.5-flash", "gemini/gemini-2.5-flash"):
             current_model = "gemini/gemini-3.8-flash"
+        current_model = self.ai_monitor.get_active_model(current_model)
         previous_error: Optional[str] = None
         last_passing_spec: Optional[str] = None
         last_passing_coverage: Optional[float] = None
@@ -886,64 +890,74 @@ class TaskWorker:
                     last_hist = last_hist[:117] + "..."
                 print(f"🧠 [FEEDBACK]: Refinando tentativa com base em: {last_hist}")
 
-            aider_cmd = [
-                "aider",
-                "--model", current_model,
-                "--read", str(service_file_path),
-                "--file", str(spec_file_path),
-                "--message", current_prompt,
-                "--yes",
-                "--no-detect-urls",
-                "--no-auto-commits",
-                "--no-show-model-warnings",
-                "--no-attribute-author",
-                "--no-attribute-committer",
-                "--map-tokens", "0",
-            ]
+            # Rate limit retry loop - does NOT consume task attempt count if throttled
+            max_rate_limit_retries = 6
+            rate_limit_retries = 0
 
-            pre_aider_spec_hash = get_file_hash(spec_file_path)
-            print(f"Calling Aider with model: {current_model}...")
-            start_time = time.time()
-            ret_code, stdout, stderr = self.run_command(aider_cmd, cwd=project_path)
-            duration = time.time() - start_time
-            print(f"Aider finished in {duration:.1f}s (Exit code: {ret_code})")
-            post_aider_spec_hash = get_file_hash(spec_file_path)
+            while rate_limit_retries < max_rate_limit_retries:
+                aider_cmd = [
+                    "aider",
+                    "--model", current_model,
+                    "--read", str(service_file_path),
+                    "--file", str(spec_file_path),
+                    "--message", current_prompt,
+                    "--yes",
+                    "--no-detect-urls",
+                    "--no-auto-commits",
+                    "--no-show-model-warnings",
+                    "--no-attribute-author",
+                    "--no-attribute-committer",
+                    "--map-tokens", "0",
+                ]
 
-            # Intelligent Rate Limit (429) & Instant Dual-Cloud Failover
-            combined_output = stdout + "\n" + stderr
-            if any(err in combined_output for err in ["RateLimitError", "rate_limit_exceeded", "RESOURCE_EXHAUSTED", "code\": 429"]):
-                print(f"⚠️ [RATE LIMIT DETECTED on {current_model}]")
-                if self.allow_model_escalation:
-                    if current_model.startswith("groq/"):
-                        current_model = "gemini/gemini-3.8-flash"
-                    elif current_model.startswith("gemini/"):
-                        current_model = "groq/openai/gpt-oss-120b"
-                    print(f"🔄 [PROVIDER ROTATION]: Failover target model: {current_model}")
+                pre_aider_spec_hash = get_file_hash(spec_file_path)
+                print(f"Calling Aider with model: {current_model}...")
+                start_time = time.time()
+                ret_code, stdout, stderr = self.run_command(aider_cmd, cwd=project_path)
+                duration = time.time() - start_time
+                print(f"Aider finished in {duration:.1f}s (Exit code: {ret_code})")
+                post_aider_spec_hash = get_file_hash(spec_file_path)
+                combined_output = stdout + "\n" + stderr
 
-                    if post_aider_spec_hash == pre_aider_spec_hash:
-                        print("⏩ Aider aborted before modifying spec due to rate limit. Retrying immediate failover with rotated provider...")
-                        time.sleep(8)
-                        aider_failover_cmd = list(aider_cmd)
-                        aider_failover_cmd[2] = current_model
-                        _, fo_stdout, fo_stderr = self.run_command(aider_failover_cmd, cwd=project_path)
-                        post_aider_spec_hash = get_file_hash(spec_file_path)
-                        combined_output = fo_stdout + "\n" + fo_stderr
-                        if post_aider_spec_hash == pre_aider_spec_hash:
-                            print("⚠️ Failover provider also throttled. Cooling down 15s before next attempt...")
-                            time.sleep(15)
-                            continue
-                        else:
-                            print(f"✅ Failover with {current_model} successfully modified spec! Proceeding to verification...")
+                rl_info = self.ai_monitor.parse_rate_limit(combined_output, current_model)
+                if rl_info and post_aider_spec_hash == pre_aider_spec_hash:
+                    rate_limit_retries += 1
+                    self.ai_monitor.record_call(
+                        model=current_model,
+                        elapsed_seconds=duration,
+                        prompt_text=current_prompt,
+                        response_text=combined_output,
+                        status="rate_limit",
+                    )
+                    print(f"⚠️ [RATE LIMIT DETECTED on {current_model}] (Retentativa sem queimar tentativa da tarefa: {rate_limit_retries}/{max_rate_limit_retries})")
+
+                    if rl_info.is_daily_limit:
+                        # Rotação imediata de modelo para não bloquear a fila
+                        next_model = rl_info.suggested_model or self.ai_monitor.get_next_available_model(current_model)
+                        print(f"🔄 [ROTAÇÃO DE COTA DIÁRIA]: {current_model} esgotou cota diária. Rotacionando para: {next_model}")
+                        current_model = next_model
+                        time.sleep(2)
+                        continue
                     else:
-                        print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
+                        # Limite de TPM/RPM (janela curta) - pausa inteligente calculada
+                        delay = rl_info.retry_delay_seconds
+                        self.ai_monitor.sleep_with_progress(
+                            delay,
+                            reason=f"Limite de requisições por minuto atingido no modelo {current_model}"
+                        )
+                        continue
                 else:
-                    if post_aider_spec_hash == pre_aider_spec_hash:
-                        print("⚠️ [RATE LIMIT]: Model escalation disabled. Cooling down 15s before retrying with same model...")
-                        time.sleep(15)
-                        _, fo_stdout, fo_stderr = self.run_command(aider_cmd, cwd=project_path)
-                        post_aider_spec_hash = get_file_hash(spec_file_path)
-                    else:
-                        print("✅ Aider modified the spec despite rate-limit warning! Proceeding to Jest verification...")
+                    # Chamada concluiu com sucesso ou modificou o arquivo de teste
+                    self.ai_monitor.record_call(
+                        model=current_model,
+                        elapsed_seconds=duration,
+                        prompt_text=current_prompt,
+                        response_text=combined_output,
+                        status="success",
+                    )
+                    if rl_info and post_aider_spec_hash != pre_aider_spec_hash:
+                        print("✅ Aider modificou o arquivo de teste apesar de alerta de rate limit. Prosseguindo para verificação Jest...")
+                    break
 
             # Deterministic Mechanical Sanitizer & Formatter (Zero-AI)
             if spec_file_path.exists():
@@ -1133,10 +1147,8 @@ class TaskWorker:
                 # Repetition Circuit Breaker
                 if self.allow_model_escalation and previous_error and error_traceback[-250:] == previous_error[-250:]:
                     print(f"⚡ [CIRCUIT BREAKER]: Identical error repeated on attempt {attempt}. Escalating provider to break loop...")
-                    if current_model.startswith("groq/"):
-                        current_model = "gemini/gemini-3.8-flash"
-                    elif current_model.startswith("gemini/"):
-                        current_model = "groq/openai/gpt-oss-120b"
+                    current_model = self.ai_monitor.get_next_available_model(current_model)
+                    print(f"   ↳ Rotated to available model: {current_model}")
                 previous_error = error_traceback
 
                 queue_manager.update_task_status(

@@ -284,6 +284,8 @@ def main():
         from pipeline.dataset_archiver import format_golden_dataset_status
         golden_dir = Path(args.golden_dir) if getattr(args, "golden_dir", None) else None
         print(format_golden_dataset_status(base_dir=golden_dir))
+        from pipeline.ai_monitor import AIMonitor
+        print(AIMonitor.get_instance().format_status())
 
     elif args.command == "pre-pr":
         from pipeline.pre_pr_summary import PrePRSummaryGenerator

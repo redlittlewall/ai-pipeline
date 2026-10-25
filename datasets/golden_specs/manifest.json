@@ -1,0 +1,36 @@
+{
+  "specs": {
+    "admin/FillBlankDays.Service.spec.ts": {
+      "spec_file": "admin/FillBlankDays.Service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/dashboard/FillBlankDays.Service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-25T01:45:28.599173+00:00",
+      "sha256": "43b065b9e299bbc5bdac5e460992105a8d83b299af761db6cbd53ac84627e626"
+    },
+    "admin/ChangeHashtagStatus.service.spec.ts": {
+      "spec_file": "admin/ChangeHashtagStatus.service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/hashtag/ChangeHashtagStatus.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-25T01:46:38.905910+00:00",
+      "sha256": "0c6b96caba75a51ddd78e6991c71154a80eb812d35facf6b29bf0d24ef0272d1"
+    },
+    "admin/GetHashtagByName.Service.spec.ts": {
+      "spec_file": "admin/GetHashtagByName.Service.spec.ts",
+      "module": "admin",
+      "service_file": "src/modules/admin/hashtag/GetHashtagByName.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-25T01:48:16.013568+00:00",
+      "sha256": "9cb7edfca9337ac8d16f0ff4d0ffc4c4a98e03d6f5907e2c3262474929b2d6fc"
+    }
+  },
+  "updated_at": "2026-10-25T01:48:16.013568+00:00",
+  "total_count": 3
+}
