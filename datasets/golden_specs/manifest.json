@@ -339,8 +339,248 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-28T00:34:14.081452+00:00",
       "sha256": "3c16d59b25889833137406880c8a80ed6ffc8cf5fb6cae29478964b30ac664a4"
+    },
+    "comments/GetComment.service.spec.ts": {
+      "spec_file": "comments/GetComment.service.spec.ts",
+      "module": "comments",
+      "service_file": "src/modules/comments/GetComment.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:09:08.023061+00:00",
+      "sha256": "95a14343c41032eeba31499450756e92a772d6a446bbcad76194cb2b81aa1caf"
+    },
+    "comments/GetCommentAnswers.service.spec.ts": {
+      "spec_file": "comments/GetCommentAnswers.service.spec.ts",
+      "module": "comments",
+      "service_file": "src/modules/comments/GetCommentAnswers.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:09:39.213266+00:00",
+      "sha256": "bf30296a0384fc9a290d05102538a5566478c728ed17c43e5fc32d3d70b7ff1a"
+    },
+    "comments/GetCommentDetailsDto.Service.spec.ts": {
+      "spec_file": "comments/GetCommentDetailsDto.Service.spec.ts",
+      "module": "comments",
+      "service_file": "src/modules/comments/GetCommentDetailsDto.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:10:17.195258+00:00",
+      "sha256": "35a29cb89acca6297e47a8b945d529f2702e28bf22a720fa45fc485504eba300"
+    },
+    "contact/Contact.service.spec.ts": {
+      "spec_file": "contact/Contact.service.spec.ts",
+      "module": "contact",
+      "service_file": "src/modules/contact/Contact.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:12:29.156375+00:00",
+      "sha256": "ebc5dca7e618cac38af59b272c594d8bf0b344b48ea7cd33ce8c2af4aadf97a1"
+    },
+    "favorites/Favorites.service.spec.ts": {
+      "spec_file": "favorites/Favorites.service.spec.ts",
+      "module": "favorites",
+      "service_file": "src/modules/favorites/Favorites.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:12:57.616757+00:00",
+      "sha256": "7b8b090dbabcaca43032559b27cb068144957f799287771da7cdfdf22dd98234"
+    },
+    "firebase/Firebase.service.spec.ts": {
+      "spec_file": "firebase/Firebase.service.spec.ts",
+      "module": "firebase",
+      "service_file": "src/modules/firebase/Firebase.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 93.75,
+      "archived_at": "2026-10-28T13:13:32.891663+00:00",
+      "sha256": "424879932597da9486b4a86d26840f1585116be61b6c7547b1aa962c82d2c8d6"
+    },
+    "hashtags/AddHashtag.service.spec.ts": {
+      "spec_file": "hashtags/AddHashtag.service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/AddHashtag.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:14:45.299032+00:00",
+      "sha256": "cdc9ddcd740eb16c86e5d892b689e7c1dfb2a8586dd92959019809260f65d395"
+    },
+    "hashtags/AssociateHashtagUser.Service.spec.ts": {
+      "spec_file": "hashtags/AssociateHashtagUser.Service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/AssociateHashtagUser.Service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:23:02.524473+00:00",
+      "sha256": "84ca06cc6522d80387bbacbdd4f8e5a8d36f00a99b28a4590a902ae3e42001fb"
+    },
+    "hashtags/ClearHashtagInteraction.Service.spec.ts": {
+      "spec_file": "hashtags/ClearHashtagInteraction.Service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/ClearHashtagInteraction.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:40:00.801625+00:00",
+      "sha256": "7abd78f5af362234472b650d8b8643bab880b11bdb4ac3ab26a674560d484900"
+    },
+    "hashtags/ClientHashtag.service.spec.ts": {
+      "spec_file": "hashtags/ClientHashtag.service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/ClientHashtag.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:46:07.959670+00:00",
+      "sha256": "e840a9400d75efd33b3e832225e8f7e55381a90f051b5c66f00e8ff5da12d50d"
+    },
+    "hashtags/HashTag.service.spec.ts": {
+      "spec_file": "hashtags/HashTag.service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/HashTag.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 53.33,
+      "archived_at": "2026-10-28T13:52:18.087111+00:00",
+      "sha256": "31643e269a23e817e14890ef6ec1f12175098bdc8dfb9716e36677dbc029dec6"
+    },
+    "hashtags/NormalizeHashtag.Service.spec.ts": {
+      "spec_file": "hashtags/NormalizeHashtag.Service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/NormalizeHashtag.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:54:03.694937+00:00",
+      "sha256": "1214e9b9e80cb4bdf1aaee059094dcbe1de2da4577f6144b9e94124bf32311fe"
+    },
+    "hashtags/QtPhotosInHashtag.Service.spec.ts": {
+      "spec_file": "hashtags/QtPhotosInHashtag.Service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/QtPhotosInHashtag.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:54:19.423840+00:00",
+      "sha256": "c175fac1d073ec8dbb3c176ad26eb03326ca50a29ae67e531b9e38752db8419f"
+    },
+    "hashtags/ValidateHashtag.service.spec.ts": {
+      "spec_file": "hashtags/ValidateHashtag.service.spec.ts",
+      "module": "hashtags",
+      "service_file": "src/modules/hashtags/ValidateHashtag.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:54:37.141557+00:00",
+      "sha256": "9a552cbbe936797fafc4bb5a5e6b218b381ab03da490c9a9c1bc2f0015299a2d"
+    },
+    "instagram/instagram-import.service.spec.ts": {
+      "spec_file": "instagram/instagram-import.service.spec.ts",
+      "module": "instagram",
+      "service_file": "src/modules/instagram/instagram-import.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 52.38,
+      "archived_at": "2026-10-28T13:55:20.863261+00:00",
+      "sha256": "12e29e02d56b1945a605a35293258cbd8023336011daab9d0c303887fc58cd01"
+    },
+    "instagram/instagram.service.spec.ts": {
+      "spec_file": "instagram/instagram.service.spec.ts",
+      "module": "instagram",
+      "service_file": "src/modules/instagram/instagram.service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 77.91,
+      "archived_at": "2026-10-28T13:57:02.008752+00:00",
+      "sha256": "29e4a7761e5e724c118726157047fe0f352d3a353584c85c104d084ef109b6fa"
+    },
+    "interaction/GetClientLikeArtist.service.spec.ts": {
+      "spec_file": "interaction/GetClientLikeArtist.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/GetClientLikeArtist.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:57:18.774029+00:00",
+      "sha256": "e147e94598605d01364ced768e3672c1630c85142b0c678e68df8dbae055e8c7"
+    },
+    "interaction/GetLikers.Service.spec.ts": {
+      "spec_file": "interaction/GetLikers.Service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/GetLikers.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:57:37.289138+00:00",
+      "sha256": "d977cdcbf769459bc809807cdbeadeeb925fe65166de578014c66bcbcbd0fe7e"
+    },
+    "interaction/Like.Service.spec.ts": {
+      "spec_file": "interaction/Like.Service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/Like.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:58:02.631899+00:00",
+      "sha256": "bbf27127325f8af9a26b541e1ee0f4876fb3c05407f6412b5e2fe18672685b9b"
+    },
+    "interaction/SaveArtistInteractionOnlyIfNotFound.service.spec.ts": {
+      "spec_file": "interaction/SaveArtistInteractionOnlyIfNotFound.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/artist/SaveArtistInteractionOnlyIfNotFound.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:58:19.766923+00:00",
+      "sha256": "8a3c2a2ddeeb7b3a6fff3ef923efbd3d5a6e79b7bf7348788c3fcd86752735ed"
+    },
+    "interaction/SimpleSaveArtistInteraction.service.spec.ts": {
+      "spec_file": "interaction/SimpleSaveArtistInteraction.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/artist/SimpleSaveArtistInteraction.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:58:54.234291+00:00",
+      "sha256": "6ee0dd6f17b66db3a5c925fb9370a1d17df6bd75bf15fca2aeb8c9f652daba9f"
+    },
+    "interaction/LikeComment.service.spec.ts": {
+      "spec_file": "interaction/LikeComment.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/comment/LikeComment.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:59:10.936804+00:00",
+      "sha256": "49b1c4efb0ba934530333468bf78630c04de961bd7f2fe9b9c36495c55927a42"
+    },
+    "interaction/ReportComment.service.spec.ts": {
+      "spec_file": "interaction/ReportComment.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/comment/ReportComment.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T13:59:28.171098+00:00",
+      "sha256": "4f54a2744bd2fcd3c323992fd90b879d0fc57382f494e29488c218fb6099fcbe"
+    },
+    "interaction/SimpleSavePhotoInteraction.service.spec.ts": {
+      "spec_file": "interaction/SimpleSavePhotoInteraction.service.spec.ts",
+      "module": "interaction",
+      "service_file": "src/modules/interaction/relations/photo/SimpleSavePhotoInteraction.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:00:04.123676+00:00",
+      "sha256": "0a7eae035292e67da87f5ee65c01b433224c8fe54b3388361732e30114c166ae"
     }
   },
-  "updated_at": "2026-10-28T00:34:14.081515+00:00",
-  "total_count": 34
+  "updated_at": "2026-10-28T14:00:04.123755+00:00",
+  "total_count": 58
 }
