@@ -1,0 +1,197 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { In } from 'typeorm';
+import { ApprovalStatus } from 'enums/ApprovalStatus';
+import { GetBudgetSchedulesService } from './GetBudgetSchedules.service';
+import { BudgetSchedule } from 'model/budget/BudgetSchedule.entity';
+
+describe('GetBudgetSchedulesService', () => {
+  let service: GetBudgetSchedulesService;
+  let budgetScheduleRepository: any;
+
+  beforeEach(async () => {
+    const createQueryBuilderMock = () => {
+      const qb: any = new Proxy(
+        {},
+        {
+          get(target, prop) {
+            if (prop === 'then') return undefined;
+            if (!(prop in target)) {
+              target[prop] = jest.fn().mockImplementation((...args: any[]) => {
+                if (args.length > 0 && typeof args[0] === 'function') {
+                  args[0](qb);
+                } else if (
+                  args.length > 0 &&
+                  args[0] &&
+                  typeof args[0].whereFactory === 'function'
+                ) {
+                  args[0].whereFactory(qb);
+                }
+                return qb;
+              });
+            }
+            return target[prop];
+          },
+        },
+      );
+      qb.getOne = jest.fn().mockResolvedValue(null);
+      qb.getMany = jest.fn().mockResolvedValue([]);
+      qb.getRawOne = jest.fn().mockResolvedValue(null);
+      qb.getRawMany = jest.fn().mockResolvedValue([]);
+      qb.getCount = jest.fn().mockResolvedValue(0);
+      qb.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+      qb.execute = jest.fn().mockResolvedValue({ affected: 1, raw: [] });
+      return qb;
+    };
+
+    const createMockRepository = () => {
+      const qb = createQueryBuilderMock();
+      return {
+        findOne: jest.fn().mockResolvedValue(null),
+        find: jest.fn().mockResolvedValue([]),
+        findAndCount: jest.fn().mockResolvedValue([[], 0]),
+        save: jest
+          .fn()
+          .mockImplementation((e: any) =>
+            Promise.resolve({ id: 'mock-id', ...(e || {}) }),
+          ),
+        create: jest.fn().mockImplementation((e: any) => e),
+        update: jest
+          .fn()
+          .mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] }),
+        delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+        softDelete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+        restore: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+        count: jest.fn().mockResolvedValue(0),
+        exist: jest.fn().mockResolvedValue(false),
+        remove: jest.fn().mockImplementation((e: any) => Promise.resolve(e)),
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      };
+    };
+    budgetScheduleRepository = createMockRepository();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GetBudgetSchedulesService,
+        {
+          provide: getRepositoryToken(BudgetSchedule),
+          useValue: budgetScheduleRepository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<GetBudgetSchedulesService>(GetBudgetSchedulesService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('getApprovedSchedule', () => {
+    it('should return approved schedule when it exists', async () => {
+      // Given (Arrange)
+      const mockSchedule = {
+        id: 'schedule-1',
+        status: ApprovalStatus.APPROVED,
+      } as any;
+      budgetScheduleRepository.findOne.mockResolvedValueOnce(mockSchedule);
+
+      // When (Act)
+      const result = await service.getApprovedSchedule('budget-id');
+
+      // Then (Assert)
+      expect(budgetScheduleRepository.findOne).toHaveBeenCalledWith({
+        where: { budget: { id: 'budget-id' }, status: ApprovalStatus.APPROVED },
+        relations: ['requestedBy', 'requestedBy.avatar'],
+      });
+      expect(result).toEqual(mockSchedule);
+    });
+
+    it('should return null when approved schedule does not exist', async () => {
+      // Given (Arrange)
+      budgetScheduleRepository.findOne.mockResolvedValueOnce(null);
+
+      // When (Act)
+      const result = await service.getApprovedSchedule('budget-id');
+
+      // Then (Assert)
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getAll', () => {
+    it('should return all schedules for a budget ordered by creation date', async () => {
+      // Given (Arrange)
+      const mockSchedules = [{ id: '1' }, { id: '2' }] as any;
+      budgetScheduleRepository.find.mockResolvedValueOnce(mockSchedules);
+
+      // When (Act)
+      const result = await service.getAll('budget-id');
+
+      // Then (Assert)
+      expect(budgetScheduleRepository.find).toHaveBeenCalledWith({
+        where: { budget: { id: 'budget-id' } },
+        relations: ['requestedBy', 'requestedBy.avatar'],
+        order: { createdAt: 'DESC' },
+      });
+      expect(result).toEqual(mockSchedules);
+    });
+
+    it('should return empty array when no schedules are found', async () => {
+      // Given (Arrange)
+      budgetScheduleRepository.find.mockResolvedValueOnce([]);
+
+      // When (Act)
+      const result = await service.getAll('budget-id');
+
+      // Then (Assert)
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getLastValidSchedule', () => {
+    it('should return the most recent pending or approved schedule', async () => {
+      // Given (Arrange)
+      const mockSchedules = [{ id: 'latest-valid' }] as any;
+      budgetScheduleRepository.find.mockResolvedValueOnce(mockSchedules);
+
+      // When (Act)
+      const result = await service.getLastValidSchedule('user-id', 'budget-id');
+
+      // Then (Assert)
+      expect(budgetScheduleRepository.find).toHaveBeenCalledWith({
+        where: {
+          budget: { id: 'budget-id' },
+          status: In([ApprovalStatus.PENDING, ApprovalStatus.APPROVED]),
+        },
+        relations: ['requestedBy', 'requestedBy.avatar'],
+        order: { createdAt: 'DESC' },
+        take: 1,
+      });
+      expect(result).toEqual(mockSchedules[0]);
+    });
+
+    it('should return null when no valid schedules are found', async () => {
+      // Given (Arrange)
+      budgetScheduleRepository.find.mockResolvedValueOnce([]);
+
+      // When (Act)
+      const result = await service.getLastValidSchedule('user-id', 'budget-id');
+
+      // Then (Assert)
+      expect(result).toBeNull();
+    });
+
+    it('should propagate errors when repository fails', async () => {
+      // Given (Arrange)
+      budgetScheduleRepository.find.mockRejectedValueOnce(
+        new Error('DB Error'),
+      );
+
+      // When & Then (Act & Assert)
+      await expect(
+        service.getLastValidSchedule('user-id', 'budget-id'),
+      ).rejects.toThrow('DB Error');
+    });
+  });
+});

@@ -89,8 +89,258 @@
       "branch_coverage": 93.56,
       "archived_at": "2026-10-25T07:00:05.757915+00:00",
       "sha256": "4677406f0efcda547e3638185ac6be778da25eadfd9c16d0daf2fa2892f9e7ab"
+    },
+    "ai/AiHealth.service.spec.ts": {
+      "spec_file": "ai/AiHealth.service.spec.ts",
+      "module": "ai",
+      "service_file": "src/modules/ai/AiHealth.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 87.23,
+      "archived_at": "2026-10-28T00:05:18.438016+00:00",
+      "sha256": "a7903fb1a34bccf2241202710a0587a6f0826aebc079cd1d32879e53530cca51"
+    },
+    "ai/AiVision.service.spec.ts": {
+      "spec_file": "ai/AiVision.service.spec.ts",
+      "module": "ai",
+      "service_file": "src/modules/ai/AiVision.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 83.04,
+      "archived_at": "2026-10-28T00:06:16.756480+00:00",
+      "sha256": "f1b0ec3eb1f977ac2b492498f83255520272781538e01a4c14a949971ee5c88e"
+    },
+    "budget/CalculateCurrentStepRepresentation.service.spec.ts": {
+      "spec_file": "budget/CalculateCurrentStepRepresentation.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/CalculateCurrentStepRepresentation.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:06:37.943828+00:00",
+      "sha256": "fa9d5d424eb8b4354d4c0d3004c7dc457b03f88d8a35856a48feb222ca16a184"
+    },
+    "budget/CancelBudget.Service.spec.ts": {
+      "spec_file": "budget/CancelBudget.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/CancelBudget.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:07:05.541837+00:00",
+      "sha256": "e161b76b8d638aa7ca1461173e555ca4bdb78a06723647fef0369f3ca8802a9b"
+    },
+    "budget/CommentBudget.Service.spec.ts": {
+      "spec_file": "budget/CommentBudget.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/CommentBudget.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:07:31.615610+00:00",
+      "sha256": "b9ac06a526f4f9f31c5c352b7f5b4947370bb5dddef1a1d58c0f231681ebffdf"
+    },
+    "budget/CreateBudget.service.spec.ts": {
+      "spec_file": "budget/CreateBudget.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/CreateBudget.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:08:27.003135+00:00",
+      "sha256": "420635fa8f2f41640e0348633534391f3ee58b1b52353b19f138c4560464d256"
+    },
+    "budget/GetBudgets.service.spec.ts": {
+      "spec_file": "budget/GetBudgets.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/GetBudgets.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 85.25,
+      "archived_at": "2026-10-28T00:09:06.065845+00:00",
+      "sha256": "1e45a4e246d7c09146473c56d69f66ec45b70f7880675f1145bb42c75ebdfa64"
+    },
+    "budget/DefineBudgetOffer.Service.spec.ts": {
+      "spec_file": "budget/DefineBudgetOffer.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/artist/DefineBudgetOffer.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:09:31.974655+00:00",
+      "sha256": "54d5445ba41b2bc7f257bb2e9d4b9375e03c741f7f5449f380025135dadec026"
+    },
+    "budget/ValidateBudgetPayment.Service.spec.ts": {
+      "spec_file": "budget/ValidateBudgetPayment.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/artist/ValidateBudgetPayment.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:10:13.529889+00:00",
+      "sha256": "50e40c4ceaef4bed84223643d7d4245d0b9b7e252bbe32b0d5efb14de626f904"
+    },
+    "budget/GetArtistBalance.service.spec.ts": {
+      "spec_file": "budget/GetArtistBalance.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/artist/balance/GetArtistBalance.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:11:29.596745+00:00",
+      "sha256": "712e1d14ef5919947580b473684b2a2e71e7bb3445d629cb207b078bcd61616e"
+    },
+    "budget/GetArtistCalendar.service.spec.ts": {
+      "spec_file": "budget/GetArtistCalendar.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/artist/calendar/GetArtistCalendar.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:11:55.023234+00:00",
+      "sha256": "9e8b212a43c412495762ae3ee33a2be4c0362fb64725918e008186756ba9e1dd"
+    },
+    "budget/AddBudgetChatMessage.Service.spec.ts": {
+      "spec_file": "budget/AddBudgetChatMessage.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/chat/AddBudgetChatMessage.Service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 90.91,
+      "archived_at": "2026-10-28T00:14:13.197619+00:00",
+      "sha256": "17bf4d59a1b088e9bf60e4153c09d91b7ef7e7bef1f34ef7a2aea062bd02d8fe"
+    },
+    "budget/BudgetChatSocket.Service.spec.ts": {
+      "spec_file": "budget/BudgetChatSocket.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/chat/BudgetChatSocket.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:14:36.098839+00:00",
+      "sha256": "15374eb33c1abe5848c3008445630b84d395c85f6fa3bf2fb5dfe51fb4593377"
+    },
+    "budget/ChatMessageToDto.Service.spec.ts": {
+      "spec_file": "budget/ChatMessageToDto.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/chat/ChatMessageToDto.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:18:37.964881+00:00",
+      "sha256": "16fd05ededfc4fd58ef3165f705f23bfdc11a176a28f2d96ea859ad2e06b0182"
+    },
+    "budget/GetBudgetChatMessages.Service.spec.ts": {
+      "spec_file": "budget/GetBudgetChatMessages.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/chat/GetBudgetChatMessages.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:18:54.381481+00:00",
+      "sha256": "ec729b6cc92543c3a8e3f89443f0c870a274370d5aec076f905c4ef90fa60746"
+    },
+    "budget/BudgetHasNotification.service.spec.ts": {
+      "spec_file": "budget/BudgetHasNotification.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/notification/BudgetHasNotification.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:19:09.372359+00:00",
+      "sha256": "bbbfda07a6f99ec030e3490c32281eafa7737d2f8948750333c369e4840e8e4d"
+    },
+    "budget/BudgetNotification.service.spec.ts": {
+      "spec_file": "budget/BudgetNotification.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/notification/BudgetNotification.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 46.15,
+      "archived_at": "2026-10-28T00:19:28.008047+00:00",
+      "sha256": "da75d6efd502c4ac004bc587810d634ba4125f51d7a5f786db999d21d0aa0a54"
+    },
+    "budget/ChangeOfferStatus.service.spec.ts": {
+      "spec_file": "budget/ChangeOfferStatus.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/offers/ChangeOfferStatus.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 71.43,
+      "archived_at": "2026-10-28T00:19:52.392689+00:00",
+      "sha256": "52a0e51a58bf32a3bfd0bb0e44f56e99d9909a6bc68affaf887d6f0606deba4c"
+    },
+    "budget/GetBudgetOffers.service.spec.ts": {
+      "spec_file": "budget/GetBudgetOffers.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/offers/GetBudgetOffers.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 87.5,
+      "archived_at": "2026-10-28T00:20:12.093429+00:00",
+      "sha256": "664dc032b1cde9d0ba9be5fabac91124f6546bf27e805adf3d1def27c88f2a75"
+    },
+    "budget/ReviewBudget.Service.spec.ts": {
+      "spec_file": "budget/ReviewBudget.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/review/ReviewBudget.Service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 65.22,
+      "archived_at": "2026-10-28T00:31:50.191362+00:00",
+      "sha256": "7d8689ad1781873400963f2e32bfbcd4b11ad3bb886c0b0a48940415720bd301"
+    },
+    "budget/GetBudgetSchedules.service.spec.ts": {
+      "spec_file": "budget/GetBudgetSchedules.service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/schedule/GetBudgetSchedules.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:32:07.634315+00:00",
+      "sha256": "fbc37c33b50dd136b99609918c87065922d043ae21ca71e377458591cd164805"
+    },
+    "budget/ReplyBudgetSchedule.Service.spec.ts": {
+      "spec_file": "budget/ReplyBudgetSchedule.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/schedule/ReplyBudgetSchedule.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 94.12,
+      "archived_at": "2026-10-28T00:32:27.221616+00:00",
+      "sha256": "8e0318f1888daf73464f0b4ee3ca9b0afb99dea07d976d01d1fd18cb84d8d765"
+    },
+    "budget/TryScheduleBudget.Service.spec.ts": {
+      "spec_file": "budget/TryScheduleBudget.Service.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/schedule/TryScheduleBudget.Service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:33:17.718640+00:00",
+      "sha256": "889e230aac7fa38f294760efc000cf6a28b559b2c5a3894375957c4acd8ecf4b"
+    },
+    "comments/CreateComment.service.spec.ts": {
+      "spec_file": "comments/CreateComment.service.spec.ts",
+      "module": "comments",
+      "service_file": "src/modules/comments/CreateComment.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:33:58.130705+00:00",
+      "sha256": "471df41d2fe6d6f298cb5650c974453f6f01fd97febd20913fdc7ca17aaa0e7c"
+    },
+    "comments/DeleteComment.service.spec.ts": {
+      "spec_file": "comments/DeleteComment.service.spec.ts",
+      "module": "comments",
+      "service_file": "src/modules/comments/DeleteComment.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T00:34:14.081452+00:00",
+      "sha256": "3c16d59b25889833137406880c8a80ed6ffc8cf5fb6cae29478964b30ac664a4"
     }
   },
-  "updated_at": "2026-10-25T07:00:05.757987+00:00",
-  "total_count": 9
+  "updated_at": "2026-10-28T00:34:14.081515+00:00",
+  "total_count": 34
 }
