@@ -579,8 +579,488 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-28T14:00:04.123676+00:00",
       "sha256": "0a7eae035292e67da87f5ee65c01b433224c8fe54b3388361732e30114c166ae"
+    },
+    "jobs/CalculateArtistPoints.service.spec.ts": {
+      "spec_file": "jobs/CalculateArtistPoints.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/rank/CalculateArtistPoints.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:17:18.787422+00:00",
+      "sha256": "e46d77240f76eca5a4db788fc854febeea0a0d12af83b7b5acf001efba738239"
+    },
+    "jobs/CalculateCommentPoints.service.spec.ts": {
+      "spec_file": "jobs/CalculateCommentPoints.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/rank/CalculateCommentPoints.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:17:57.974275+00:00",
+      "sha256": "bade82a6abe7167b3da57b10a0736344b870807583a0d9abeaa3af7a53118746"
+    },
+    "jobs/CalculatePhotoPoints.service.spec.ts": {
+      "spec_file": "jobs/CalculatePhotoPoints.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/rank/CalculatePhotoPoints.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:23:15.099023+00:00",
+      "sha256": "f08f3dead7f05b6ae74be3f5eb0fd323dd698c14358a7cda037f5a8c084cbd86"
+    },
+    "jobs/CalculateRank.service.spec.ts": {
+      "spec_file": "jobs/CalculateRank.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/rank/CalculateRank.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:24:06.289354+00:00",
+      "sha256": "c612567cc09d5c4efc52a3a914b90ab61d221f14a98aa7b38dfd53266dc65c8f"
+    },
+    "jobs/RemoveOldSockets.Service.spec.ts": {
+      "spec_file": "jobs/RemoveOldSockets.Service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/socket/RemoveOldSockets.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:26:11.744145+00:00",
+      "sha256": "7e676b1d1d3767b4d7a93cc5b765834a61a238b31fe7b3d1d617590cb6a21a86"
+    },
+    "jobs/StripePayoutDelayed.Service.spec.ts": {
+      "spec_file": "jobs/StripePayoutDelayed.Service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/stripe/StripePayoutDelayed.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:28:25.181357+00:00",
+      "sha256": "0e89cae37832ec48a96e5cf993780a0d0606a34034035512727c1804b655f574"
+    },
+    "jobs/VerifyStripeApprovalDelayed.Service.spec.ts": {
+      "spec_file": "jobs/VerifyStripeApprovalDelayed.Service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/stripe/VerifyStripeApprovalDelayed.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:29:31.386741+00:00",
+      "sha256": "aa43eac3a415e3dc93c97eb341f17e8ee80f5741f6f5fe458a9a09ee99c06ee8"
+    },
+    "jobs/DeleteAnonymousUsers.service.spec.ts": {
+      "spec_file": "jobs/DeleteAnonymousUsers.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/user/DeleteAnonymousUsers.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:33:08.307884+00:00",
+      "sha256": "b7002cce7738332a100bae707d07eb848a36a918acda6cb7d4cc3d8ef3935f11"
+    },
+    "legal/Legal.service.spec.ts": {
+      "spec_file": "legal/Legal.service.spec.ts",
+      "module": "legal",
+      "service_file": "src/modules/legal/Legal.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 93.33,
+      "archived_at": "2026-10-28T14:36:07.593585+00:00",
+      "sha256": "280d591d4499eed4d0cfc9ff9c3bf74e5cb988200aa5cfb21308c50ccf61b9dc"
+    },
+    "login/Login.service.spec.ts": {
+      "spec_file": "login/Login.service.spec.ts",
+      "module": "login",
+      "service_file": "src/modules/login/Login.service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 94.12,
+      "archived_at": "2026-10-28T14:43:10.794597+00:00",
+      "sha256": "2507a2b76516522d070045609f200115c7b9fc1420c786afcf74acc7aa6008ac"
+    },
+    "mailerlite/MailerLite.Service.spec.ts": {
+      "spec_file": "mailerlite/MailerLite.Service.spec.ts",
+      "module": "mailerlite",
+      "service_file": "src/modules/mailerLite/MailerLite.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T14:44:02.109592+00:00",
+      "sha256": "95e150e3fa8a923a5bfdcf3ede64ab0a0181696405b276544ae4cfcfdc519a94"
+    },
+    "media/aws-s3.service.spec.ts": {
+      "spec_file": "media/aws-s3.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/aws-s3.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 86.67,
+      "archived_at": "2026-10-28T14:47:19.362491+00:00",
+      "sha256": "28853606f98d81bc175342b239f984e41b9e39b482170416101219c8d36b9ba3"
+    },
+    "media/local-storage.service.spec.ts": {
+      "spec_file": "media/local-storage.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/local-storage.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 94.12,
+      "archived_at": "2026-10-28T14:50:50.546101+00:00",
+      "sha256": "db316c59b09e309f99e4e00c73507183754b0cc202d955110498377469a474f0"
+    },
+    "media/media.service.spec.ts": {
+      "spec_file": "media/media.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/media.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 75.0,
+      "archived_at": "2026-10-28T15:02:56.303566+00:00",
+      "sha256": "cf0f6b566a0c5132ec3352904ce88ba2c31249bbdb9cb2480e38044de4a198f4"
+    },
+    "media/media-audio.service.spec.ts": {
+      "spec_file": "media/media-audio.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/services/media-audio.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 31.25,
+      "archived_at": "2026-10-28T15:07:52.379135+00:00",
+      "sha256": "730a3ab8c3afc14d94752efb44b9fb347ddbe480e8625c0c9688f5a067d0198f"
+    },
+    "media/media-image.service.spec.ts": {
+      "spec_file": "media/media-image.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/services/media-image.service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 75.0,
+      "archived_at": "2026-10-28T15:13:09.375899+00:00",
+      "sha256": "8b12b74d2e7addd105b38c47f1a6e40b7346843b6273000b0b2f750b600a8893"
+    },
+    "media/media-permission.service.spec.ts": {
+      "spec_file": "media/media-permission.service.spec.ts",
+      "module": "media",
+      "service_file": "src/modules/media/services/media-permission.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 9.09,
+      "archived_at": "2026-10-28T15:15:12.343491+00:00",
+      "sha256": "6d08ebcc69af160195ff064b4e0909ae10f80cf1e57312a1fefa4408e287db03"
+    },
+    "mention/GetClientMentionExtraDataByClient.Service.spec.ts": {
+      "spec_file": "mention/GetClientMentionExtraDataByClient.Service.spec.ts",
+      "module": "mention",
+      "service_file": "src/modules/mention/GetClientMentionExtraDataByClient.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T15:29:45.666307+00:00",
+      "sha256": "9859a6034aa6abe5f683254b9088dde8fbaee3fe7fb2e454c85ae088fd533eb9"
+    },
+    "mention/GetTopClientMentions.Service.spec.ts": {
+      "spec_file": "mention/GetTopClientMentions.Service.spec.ts",
+      "module": "mention",
+      "service_file": "src/modules/mention/GetTopClientMentions.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 75.0,
+      "archived_at": "2026-10-28T15:38:10.242128+00:00",
+      "sha256": "3d30028cb0e63b527942f2602812c64ad597e4e992a368fdd6f98e4b85ba8c51"
+    },
+    "mention/GetTopHashtagMentions.Service.spec.ts": {
+      "spec_file": "mention/GetTopHashtagMentions.Service.spec.ts",
+      "module": "mention",
+      "service_file": "src/modules/mention/GetTopHashtagMentions.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 0.0,
+      "archived_at": "2026-10-28T15:40:04.120858+00:00",
+      "sha256": "8b7029e8a9bb14c2eac2d29c011a995904d2b97b249817bbf7811aa3fee27e65"
+    },
+    "mention/SearchClientMention.Service.spec.ts": {
+      "spec_file": "mention/SearchClientMention.Service.spec.ts",
+      "module": "mention",
+      "service_file": "src/modules/mention/SearchClientMention.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 66.67,
+      "archived_at": "2026-10-28T15:41:46.090159+00:00",
+      "sha256": "7d97a7367097c9dcf94ef18e99e9f8a09df035665c64a2057123929e614e81e6"
+    },
+    "mention/SearchHashtagMention.Service.spec.ts": {
+      "spec_file": "mention/SearchHashtagMention.Service.spec.ts",
+      "module": "mention",
+      "service_file": "src/modules/mention/SearchHashtagMention.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 50.0,
+      "archived_at": "2026-10-28T15:46:46.495779+00:00",
+      "sha256": "39ec03e5d6c303495b6aa8f650d7f16f1ca0ad26f66f4b0e962744f50e95020b"
+    },
+    "notification/AnswerNotifications.Service.spec.ts": {
+      "spec_file": "notification/AnswerNotifications.Service.spec.ts",
+      "module": "notification",
+      "service_file": "src/modules/notification/AnswerNotifications.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 72.22,
+      "archived_at": "2026-10-28T15:47:50.920757+00:00",
+      "sha256": "34d5dd7f85c99aa67d3856ba2aa62878938f80890d9e6eafc1dc098d02060784"
+    },
+    "notification/GetOwnNotifications.Service.spec.ts": {
+      "spec_file": "notification/GetOwnNotifications.Service.spec.ts",
+      "module": "notification",
+      "service_file": "src/modules/notification/GetOwnNotifications.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T15:49:22.563682+00:00",
+      "sha256": "d02447138be9fa0cb3b0242bd454a19481142345fc3dd12cbb929bd2da192c20"
+    },
+    "notification/MarkNotificationsRead.Service.spec.ts": {
+      "spec_file": "notification/MarkNotificationsRead.Service.spec.ts",
+      "module": "notification",
+      "service_file": "src/modules/notification/MarkNotificationsRead.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T15:51:31.508946+00:00",
+      "sha256": "7f7c0ba275c8150d0c58f4d9507333511e84a48e87110ef1a229b5adf7147bbf"
+    },
+    "notification/NotificationWorkflow.Service.spec.ts": {
+      "spec_file": "notification/NotificationWorkflow.Service.spec.ts",
+      "module": "notification",
+      "service_file": "src/modules/notification/NotificationWorkflow.Service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 66.67,
+      "archived_at": "2026-10-28T15:55:22.056427+00:00",
+      "sha256": "bf5c3f2188825fccc9f9d505c89cf5682c1cdeba0eee149ec9177e6431073452"
+    },
+    "notification/UpdatePushToken.Service.spec.ts": {
+      "spec_file": "notification/UpdatePushToken.Service.spec.ts",
+      "module": "notification",
+      "service_file": "src/modules/notification/UpdatePushToken.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T15:56:06.400917+00:00",
+      "sha256": "5ef30421a3b81b693e120533c991e739708ee7f4f6db41ae44ebc36f2eddf4c3"
+    },
+    "open/LeadCollector.service.spec.ts": {
+      "spec_file": "open/LeadCollector.service.spec.ts",
+      "module": "open",
+      "service_file": "src/modules/open/LeadCollector.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 72.73,
+      "archived_at": "2026-10-28T15:57:05.703985+00:00",
+      "sha256": "6ae36dd245e1d7114ad3bda93fb92e4d9d5e40f2302c56cfe9ada17ce56cb95f"
+    },
+    "payment/CreatePaymentSheet.service.spec.ts": {
+      "spec_file": "payment/CreatePaymentSheet.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/CreatePaymentSheet.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T16:01:20.654466+00:00",
+      "sha256": "1d17a9ea1a84ccdda5bca4e0c8acad57b2aa1554d04679ecf5d67abc12673211"
+    },
+    "payment/StartPayment.service.spec.ts": {
+      "spec_file": "payment/StartPayment.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/StartPayment.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T16:18:08.297070+00:00",
+      "sha256": "518c9c78b8ec5f80d9644ce888f147e2c50a466686f43cfb62c9ab6025dcd53a"
+    },
+    "payment/CalculateRefoundPercentage.service.spec.ts": {
+      "spec_file": "payment/CalculateRefoundPercentage.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/actions/CalculateRefoundPercentage.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T16:19:05.993569+00:00",
+      "sha256": "3cbb1efddbc7f65a0040f2d36a9f58d39ed9e3c356b0e9e78bbb5fae9b3dc437"
+    },
+    "payment/HandlePayoutUpdated.Service.spec.ts": {
+      "spec_file": "payment/HandlePayoutUpdated.Service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/actions/HandlePayoutUpdated.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T16:59:43.688087+00:00",
+      "sha256": "d62f0adc222b8cc23aed1c12ee48e93f6bf274bc652233ce0dd31755d001a366"
+    },
+    "payment/HandleRefoundPayment.service.spec.ts": {
+      "spec_file": "payment/HandleRefoundPayment.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/actions/HandleRefoundPayment.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 83.33,
+      "archived_at": "2026-10-28T17:00:24.418422+00:00",
+      "sha256": "fe9b0d70eb8234ec8d4f77165a8b154a5521118c4296e475e56719dd690f3488"
+    },
+    "payment/HandleSucessPayment.service.spec.ts": {
+      "spec_file": "payment/HandleSucessPayment.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/actions/HandleSucessPayment.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T17:21:17.277105+00:00",
+      "sha256": "23bd32fc2966e54d56cc97e2faab3faf14d55157d60fec68626407f733b5aad1"
+    },
+    "payment/GetCompanyAccountPersons.service.spec.ts": {
+      "spec_file": "payment/GetCompanyAccountPersons.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/GetCompanyAccountPersons.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T17:37:06.779286+00:00",
+      "sha256": "d754f8fb7eb2c95f89ce6fa86f7febdcfc82292a2f7c7b7a43f54a58e0bd2207"
+    },
+    "payment/GetStripeDatabaseData.service.spec.ts": {
+      "spec_file": "payment/GetStripeDatabaseData.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/GetStripeDatabaseData.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T17:52:23.762063+00:00",
+      "sha256": "61f2498769d03903f3dc6b9e9a60c2195ea11ea774e6b29405e2efd4197c8f21"
+    },
+    "payment/HandleAccountUpdated.service.spec.ts": {
+      "spec_file": "payment/HandleAccountUpdated.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/HandleAccountUpdated.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 93.75,
+      "archived_at": "2026-10-28T17:52:44.094529+00:00",
+      "sha256": "86cc7bad4cd866f290eab1caff94741e2aac8d2e37d1fbbcdcff9e8a0d7908f2"
+    },
+    "payment/SaveStripeAccountData.Service.spec.ts": {
+      "spec_file": "payment/SaveStripeAccountData.Service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/SaveStripeAccountData.Service.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-28T18:24:09.618750+00:00",
+      "sha256": "11c0b7883af193bd2530d2f1f14ccea313e959088605f56a38c167da67dd1b8e"
+    },
+    "payment/StripeFiles.service.spec.ts": {
+      "spec_file": "payment/StripeFiles.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/StripeFiles.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T07:03:53.111053+00:00",
+      "sha256": "218fe7e611d36851182dc15d39a74df9957635c59afcb6e25c9ec3694e09f100"
+    },
+    "payment/StripeWebhook.service.spec.ts": {
+      "spec_file": "payment/StripeWebhook.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/StripeWebhook.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 85.71,
+      "archived_at": "2026-10-29T07:19:14.165660+00:00",
+      "sha256": "87b4de4aff861f2a7bdc130d365ac064d0b386abdcde69724eef7344c8d6ae00"
+    },
+    "premium/DowngradePremium.Service.spec.ts": {
+      "spec_file": "premium/DowngradePremium.Service.spec.ts",
+      "module": "premium",
+      "service_file": "src/modules/premium/DowngradePremium.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T07:19:34.237343+00:00",
+      "sha256": "cdc0477abdd5d400b6c6c158c2a25994512adc1ef6591e7cea96d8cc92321acc"
+    },
+    "premium/Premium.service.spec.ts": {
+      "spec_file": "premium/Premium.service.spec.ts",
+      "module": "premium",
+      "service_file": "src/modules/premium/Premium.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T07:34:54.920149+00:00",
+      "sha256": "6180c150f7614e1ee3f6fdd16926482cc29af992248d098a8d9e0eb6da5f9412"
+    },
+    "premium/RemovePersonalPhotos.Service.spec.ts": {
+      "spec_file": "premium/RemovePersonalPhotos.Service.spec.ts",
+      "module": "premium",
+      "service_file": "src/modules/premium/RemovePersonalPhotos.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T07:50:20.596431+00:00",
+      "sha256": "b9b91fc091d3ae5ba74b338f7ad8a5c65910f6a4f5ab99ec0cf3932d09c4ee76"
+    },
+    "premium/UpgradePremium.Service.spec.ts": {
+      "spec_file": "premium/UpgradePremium.Service.spec.ts",
+      "module": "premium",
+      "service_file": "src/modules/premium/UpgradePremium.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T08:05:44.090313+00:00",
+      "sha256": "152453ff701e2e160ae51fc7f173d220895225e458706164d1641ef8c03d23df"
+    },
+    "price/PriceCalculator.service.spec.ts": {
+      "spec_file": "price/PriceCalculator.service.spec.ts",
+      "module": "price",
+      "service_file": "src/modules/price/PriceCalculator.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T08:21:06.051117+00:00",
+      "sha256": "2d3a264b217f5d6504b5c4da8e118d593f9da8f3294e7c07f15fecdb7f37d21d"
+    },
+    "profile/ArtistPreferences.service.spec.ts": {
+      "spec_file": "profile/ArtistPreferences.service.spec.ts",
+      "module": "profile",
+      "service_file": "src/modules/profile/ArtistPreferences.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 20.0,
+      "archived_at": "2026-10-29T12:04:45.429142+00:00",
+      "sha256": "9f911b5754cb93234d2665bff6444e8ddb9f5ae991318ca576fcd777fc0373d4"
+    },
+    "profile/GetArtistExtraProfile.service.spec.ts": {
+      "spec_file": "profile/GetArtistExtraProfile.service.spec.ts",
+      "module": "profile",
+      "service_file": "src/modules/profile/GetArtistExtraProfile.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 25.0,
+      "archived_at": "2026-10-29T12:20:08.615819+00:00",
+      "sha256": "c4eedd16bfbcc72cc2dc02dac77b9c268efc43cb884ef49b80b47f40db4c1a5a"
+    },
+    "profile/GetAverageStars.Service.spec.ts": {
+      "spec_file": "profile/GetAverageStars.Service.spec.ts",
+      "module": "profile",
+      "service_file": "src/modules/profile/GetAverageStars.Service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T12:50:14.452710+00:00",
+      "sha256": "0156aced479ad51f5139d1faba145dcfdd1f199fc829a6cbb6870079e17a24a2"
     }
   },
-  "updated_at": "2026-10-28T14:00:04.123755+00:00",
-  "total_count": 58
+  "updated_at": "2026-10-29T12:50:14.452771+00:00",
+  "total_count": 106
 }
