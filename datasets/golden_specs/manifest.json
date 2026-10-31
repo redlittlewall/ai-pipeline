@@ -1209,8 +1209,18 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-31T15:39:17.661773+00:00",
       "sha256": "e5930b3c44ee5f312a77b4fd188a20f5144d8f67a35d01c704bbd039f3e05e11"
+    },
+    "jobs/FixDuplicatedLogin.service.spec.ts": {
+      "spec_file": "jobs/FixDuplicatedLogin.service.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/FixDuplicatedLogin.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-31T17:18:40.098704+00:00",
+      "sha256": "67b5dab0933d1e7afa8b2a431c8d4aaf67aa186df25b297ca22685a1a8927536"
     }
   },
-  "updated_at": "2026-10-31T15:39:17.661841+00:00",
-  "total_count": 121
+  "updated_at": "2026-10-31T17:18:40.098817+00:00",
+  "total_count": 122
 }
