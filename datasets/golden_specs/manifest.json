@@ -1059,8 +1059,148 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-29T12:50:14.452710+00:00",
       "sha256": "0156aced479ad51f5139d1faba145dcfdd1f199fc829a6cbb6870079e17a24a2"
+    },
+    "profile/GetPhone.service.spec.ts": {
+      "spec_file": "profile/GetPhone.service.spec.ts",
+      "module": "profile",
+      "service_file": "src/modules/profile/phone/GetPhone.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T14:10:20.209781+00:00",
+      "sha256": "641a78688ba43848cbfa9a59c058d6a2059e0f18fa2a942f1d86b0f88fcbec77"
+    },
+    "profile/UpdatePhone.service.spec.ts": {
+      "spec_file": "profile/UpdatePhone.service.spec.ts",
+      "module": "profile",
+      "service_file": "src/modules/profile/phone/UpdatePhone.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T14:15:11.905366+00:00",
+      "sha256": "571d0f4f9d0e96fb0a86567499e4b50047d9287cc8349ab4740a862a05e7962b"
+    },
+    "prometheus/Prometheus.service.spec.ts": {
+      "spec_file": "prometheus/Prometheus.service.spec.ts",
+      "module": "prometheus",
+      "service_file": "src/modules/prometheus/Prometheus.service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T14:24:49.497204+00:00",
+      "sha256": "87bba035143f88448b84752caacd3c992622337233179fec09e62aa2e007da4f"
+    },
+    "revenuecat/RevenueCatCallback.service.spec.ts": {
+      "spec_file": "revenuecat/RevenueCatCallback.service.spec.ts",
+      "module": "revenuecat",
+      "service_file": "src/modules/revenueCat/RevenueCatCallback.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T14:57:28.459290+00:00",
+      "sha256": "493a1fa33cb419131f53f0509de6094c70daf452cf6a5736d4d3d17ce2db692d"
+    },
+    "search/GetArtistDetail.Service.spec.ts": {
+      "spec_file": "search/GetArtistDetail.Service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/GetArtistDetail.Service.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 50.0,
+      "archived_at": "2026-10-29T14:59:43.098362+00:00",
+      "sha256": "79536531e065b33dcafd632b456ff4d25977a2de60e8b1ce18c694cbb2028b88"
+    },
+    "search/GetFilters.service.spec.ts": {
+      "spec_file": "search/GetFilters.service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/GetFilters.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 91.67,
+      "archived_at": "2026-10-29T15:01:50.885482+00:00",
+      "sha256": "edcb714cbd37515155b1859b9b243839e1bfa19159b859c25df6e4324598ffcb"
+    },
+    "search/GetHashtagDetail.Service.spec.ts": {
+      "spec_file": "search/GetHashtagDetail.Service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/GetHashtagDetail.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T15:02:11.305306+00:00",
+      "sha256": "727c7ccff585e034fd082440ecdffa23cd2b285853f047fe11583a2fb16d7e3b"
+    },
+    "search/GetProfileDetails.service.spec.ts": {
+      "spec_file": "search/GetProfileDetails.service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/GetProfileDetails.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T15:02:31.463670+00:00",
+      "sha256": "b7019ba3765766e300cf2fce0fdc2cc1f73c9ea2e9c7d4aea21fb30f1e634c15"
+    },
+    "search/SearchHashtags.service.spec.ts": {
+      "spec_file": "search/SearchHashtags.service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/SearchHashtags.service.ts",
+      "quality_score": 90.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 83.33,
+      "archived_at": "2026-10-29T15:15:04.089817+00:00",
+      "sha256": "991fc2d4a0b5f2b3f61953ee6197d5acbd986c21e025d769018752551debc738"
+    },
+    "search/SearchPhotos.service.spec.ts": {
+      "spec_file": "search/SearchPhotos.service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/SearchPhotos.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 92.59,
+      "archived_at": "2026-10-29T15:15:28.828674+00:00",
+      "sha256": "1f61660e9ab8fe196c56ec02497fdcf5561352a022e33d29ca7bb3394b31c64f"
+    },
+    "search/SearchUser.service.spec.ts": {
+      "spec_file": "search/SearchUser.service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/SearchUser.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 42.86,
+      "archived_at": "2026-10-29T16:00:59.139156+00:00",
+      "sha256": "3050d52ba3a68d48ef0faab361567a04723f4d38d003bf2ecfb9e0b763b08427"
+    },
+    "search/SponsorSearchAdd.Service.spec.ts": {
+      "spec_file": "search/SponsorSearchAdd.Service.spec.ts",
+      "module": "search",
+      "service_file": "src/modules/search/SponsorSearchAdd.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T16:01:47.008779+00:00",
+      "sha256": "37a09ccef4b972ba3b211aa3e8909749cdb213b274fc37682794ccc286441422"
+    },
+    "searchlog/SearchLog.service.spec.ts": {
+      "spec_file": "searchlog/SearchLog.service.spec.ts",
+      "module": "searchlog",
+      "service_file": "src/modules/searchLog/SearchLog.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T16:02:16.478540+00:00",
+      "sha256": "7c13dac8003041f330098433df9269d6688e5ac9903968921475ea776fb8570e"
+    },
+    "sockets/ConnectSocket.Service.spec.ts": {
+      "spec_file": "sockets/ConnectSocket.Service.spec.ts",
+      "module": "sockets",
+      "service_file": "src/modules/sockets/ConnectSocket.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-10-29T16:03:01.522227+00:00",
+      "sha256": "f65e9b93ae426dcf95770fa47028a0a7ff35ff9494624991a0d8464fa41e9bc2"
     }
   },
-  "updated_at": "2026-10-29T12:50:14.452771+00:00",
-  "total_count": 106
+  "updated_at": "2026-10-29T16:03:01.522341+00:00",
+  "total_count": 120
 }
