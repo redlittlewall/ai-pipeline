@@ -55,6 +55,40 @@ export class UserService {
         self.assertIn("it('should be defined'", scaffold)
         self.assertIn("describe('createUser'", scaffold)
 
+    def test_extract_type_summary(self):
+        from pipeline.scaffolder import extract_type_summary
+        dto_code = """
+export class ProfileInfoDto {
+  name?: string;
+  cpf: string;
+  companyCNPJ: string;
+  termsAccepted: boolean;
+
+  constructor(cpf: string, companyCNPJ: string) {
+    this.cpf = cpf;
+    this.companyCNPJ = companyCNPJ;
+  }
+}
+"""
+        summary = extract_type_summary(dto_code)
+        self.assertIn("export class ProfileInfoDto {", summary)
+        self.assertIn("companyCNPJ: string;", summary)
+        self.assertIn("termsAccepted: boolean;", summary)
+        self.assertNotIn("this.companyCNPJ = companyCNPJ", summary)
+
+    def test_scaffold_third_party_mocks(self):
+        service_code = """
+import { Injectable } from '@nestjs/common';
+const Stripe = require('stripe');
+const applicationStripe = Stripe(process.env.SSECRET);
+
+@Injectable()
+export class StripeService {}
+"""
+        scaffold = self.scaffolder.generate_scaffold(Path("Stripe.service.ts"), service_code)
+        self.assertIn("jest.mock('stripe'", scaffold)
+        self.assertIn("mockStripeAccounts", scaffold)
+
 
 if __name__ == "__main__":
     unittest.main()

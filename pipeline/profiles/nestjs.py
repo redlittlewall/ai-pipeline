@@ -74,7 +74,7 @@ class NestJSProfile(ProjectProfile):
   });"""
 
     def get_service_file_pattern(self) -> re.Pattern:
-        return re.compile(r"^(.+)[._]service\.ts$", re.IGNORECASE)
+        return re.compile(r"^(.+)service\.ts$", re.IGNORECASE)
 
     def get_expected_spec_path(self, service_file: Path) -> Path:
         return service_file.with_name(f"{service_file.stem}.spec.ts")

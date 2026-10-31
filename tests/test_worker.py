@@ -345,6 +345,17 @@ export class SetArtistLocaleService {
         manifest_path = golden_dir / "manifest.json"
         self.assertTrue(manifest_path.exists())
 
+    def test_extract_typescript_hints(self):
+        from pipeline.worker import extract_typescript_hints
+        sample_error = (
+            "src/modules/profile/Profile.service.spec.ts:315:21 - error TS2339: Property 'cnpj' does not exist on type 'ProfileInfoDto'.\n"
+            "src/modules/profile/Profile.service.spec.ts:580:21 - error TS2551: Property 'genericProfile' does not exist on type 'ProfileDto'. Did you mean 'genericProfileData'?\n"
+        )
+        hints = extract_typescript_hints(sample_error)
+        self.assertEqual(len(hints), 2)
+        self.assertIn("Substitua `.genericProfile` por `.genericProfileData` no tipo `ProfileDto`.", hints)
+        self.assertIn("A propriedade `cnpj` NÃO existe no tipo `ProfileInfoDto`.", hints[1])
+
 
 if __name__ == "__main__":
     unittest.main()

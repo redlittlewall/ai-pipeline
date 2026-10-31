@@ -3,6 +3,38 @@ import re
 from typing import Dict, List, Optional
 
 
+def extract_type_summary(content: str) -> str:
+    """Extracts property signatures from DTOs and entities while stripping constructor implementations."""
+    if "enum " in content:
+        return content.strip()
+    lines = []
+    in_class = False
+    brace_depth = 0
+    seen_props = set()
+    for line in content.splitlines():
+        trimmed = line.strip()
+        if re.match(r'export\s+(?:class|interface|type)\s+', trimmed):
+            lines.append(trimmed)
+            in_class = True
+            brace_depth += trimmed.count('{') - trimmed.count('}')
+            continue
+        if in_class:
+            if trimmed.startswith('constructor') or 'constructor(' in trimmed:
+                brace_depth += trimmed.count('{') - trimmed.count('}')
+                continue
+            if brace_depth == 1 and trimmed and not trimmed.startswith('//') and not trimmed.startswith('/*'):
+                if trimmed.endswith(';') and (':' in trimmed or '?:' in trimmed):
+                    prop_name = trimmed.split(':')[0].strip().rstrip('?')
+                    if prop_name not in seen_props:
+                        seen_props.add(prop_name)
+                        lines.append(f"  {trimmed}")
+            brace_depth += trimmed.count('{') - trimmed.count('}')
+            if brace_depth <= 0:
+                lines.append("}\n")
+                in_class = False
+    return "\n".join(lines) if lines else content[:800]
+
+
 class NestJSScaffolder:
     """Deterministically generates NestJS unit test scaffolds with mocked dependencies (Zero-AI)."""
 
@@ -247,7 +279,41 @@ class NestJSScaffolder:
 
         methods_str = chr(10).join(method_blocks)
 
-        scaffold = f"""{chr(10).join(import_lines)}
+        top_mocks = []
+        if re.search(r"require\(['\"]stripe['\"]\)|from\s+['\"]stripe['\"]", service_code):
+            top_mocks.extend([
+                "const mockStripeAccounts = {",
+                "  listPersons: jest.fn().mockResolvedValue({ data: [] }),",
+                "  update: jest.fn().mockResolvedValue({}),",
+                "  updatePerson: jest.fn().mockResolvedValue({}),",
+                "  del: jest.fn().mockResolvedValue({}),",
+                "  retrieve: jest.fn().mockResolvedValue({}),",
+                "  create: jest.fn().mockResolvedValue({}),",
+                "  createExternalAccount: jest.fn().mockResolvedValue({}),",
+                "  createPerson: jest.fn().mockResolvedValue({}),",
+                "};",
+                "jest.mock('stripe', () => jest.fn(() => ({ accounts: mockStripeAccounts })));",
+                "",
+            ])
+        if re.search(r"['\"]fluent-ffmpeg['\"]", service_code):
+            top_mocks.extend([
+                "jest.mock('fluent-ffmpeg', () => {",
+                "  const mockFfmpeg = jest.fn(() => ({",
+                "    ffprobe: jest.fn((cb: Function) => cb(null, { format: { duration: 15 }, streams: [] })),",
+                "    outputOptions: jest.fn().mockReturnThis(),",
+                "    save: jest.fn().mockReturnThis(),",
+                "    screenshots: jest.fn().mockReturnThis(),",
+                "    on: jest.fn(function(this: any, e: string, h: Function) { if (e === 'end') h(); return this; }),",
+                "  }));",
+                "  (mockFfmpeg as any).ffprobe = jest.fn((p: string, cb: Function) => cb(null, { format: { duration: 15 } }));",
+                "  return mockFfmpeg;",
+                "});",
+                "",
+            ])
+
+        top_mocks_str = (chr(10).join(top_mocks) + chr(10)) if top_mocks else ""
+
+        scaffold = f"""{top_mocks_str}{chr(10).join(import_lines)}
 
 describe('{class_name}', () => {{
 {chr(10).join(let_declarations)}
@@ -274,7 +340,7 @@ describe('{class_name}', () => {{
         return scaffold
 
     def extract_imported_type_context(
-        self, project_path: Path, service_path: Path, service_code: str, max_total_chars: int = 2500
+        self, project_path: Path, service_path: Path, service_code: str, max_total_chars: int = 8000
     ) -> str:
         """Extracts concise Enum and DTO definitions imported by the service to prevent LLM hallucination."""
         parsed = self.parse_service(service_code)
@@ -290,10 +356,10 @@ describe('{class_name}', () => {{
                 continue
             seen_paths.add(imp_path)
 
-            # Focus on Enums, DTOs, and custom Exceptions
+            # Focus on Enums, DTOs, entities, and custom Exceptions
             is_relevant = any(
                 k in imp_path.lower() or k in sym.lower()
-                for k in ["enum", "dto", "exception", "interface", "type"]
+                for k in ["enum", "dto", "exception", "interface", "type", "entity"]
             )
             if not is_relevant:
                 continue
@@ -310,15 +376,15 @@ describe('{class_name}', () => {{
 
             if candidate and candidate.is_file():
                 try:
-                    content = candidate.read_text(encoding="utf-8").strip()
-                    # Keep only compact files (< 1200 chars)
-                    if 0 < len(content) <= 1200 and (total_chars + len(content)) <= max_total_chars:
-                        snippets.append(f"// import path: '{imp_path}'\n{content}")
-                        total_chars += len(content)
+                    raw_content = candidate.read_text(encoding="utf-8").strip()
+                    summary = extract_type_summary(raw_content)
+                    if summary and (total_chars + len(summary)) <= max_total_chars:
+                        snippets.append(f"// import path: '{imp_path}'\n{summary}")
+                        total_chars += len(summary)
                 except Exception:
                     pass
 
         if not snippets:
             return ""
-        return "\n\nREFERÊNCIA REAL DE ENUMS E DTOS IMPORTADOS (Use exatamente estes tipos/chaves):\n```typescript\n" + "\n\n".join(snippets) + "\n```"
+        return "\n\nREFERÊNCIA REAL DE ENUMS, ENTIDADES E DTOS IMPORTADOS (Use exatamente estes tipos/propriedades):\n```typescript\n" + "\n\n".join(snippets) + "\n```"
 

@@ -166,6 +166,20 @@ def prune_failing_tests(spec_text: str, jest_output: str) -> Optional[str]:
     return None
 
 
+def extract_typescript_hints(error_text: str) -> List[str]:
+    """Extracts helpful TypeScript compiler suggestions like 'Did you mean X?' or missing property errors."""
+    hints = []
+    if not error_text:
+        return hints
+    for m in re.finditer(r"error TS\d+:\s+Property '([^']+)' does not exist on type '([^']+)'.\s+Did you mean '([^']+)'\?", error_text):
+        wrong_prop, type_name, correct_prop = m.group(1), m.group(2), m.group(3)
+        hints.append(f"Substitua `.{wrong_prop}` por `.{correct_prop}` no tipo `{type_name}`.")
+    for m in re.finditer(r"error TS2339:\s+Property '([^']+)' does not exist on type '([^']+)'", error_text):
+        prop, type_name = m.group(1), m.group(2)
+        hints.append(f"A propriedade `{prop}` NÃO existe no tipo `{type_name}`. Remova essa asserção ou use `(result as any).{prop}`.")
+    return list(dict.fromkeys(hints))
+
+
 def format_refinement_prompt(
     base_prompt: str,
     attempt_history: List[str],
@@ -693,6 +707,138 @@ class TaskWorker:
         except Exception as e:
             return 1, "", str(e)
 
+    def execute_method_chunking(
+        self,
+        task: Task,
+        project_path: Path,
+        service_file_path: Path,
+        spec_file_path: Path,
+        initial_scaffold: str,
+        parsed_service: Dict[str, Any],
+        type_context: str,
+        current_model: str,
+        profile: Any,
+    ) -> bool:
+        """Incrementally generates and tests describe('method') blocks one-by-one for large/complex services."""
+        methods = parsed_service.get("methods", [])
+        class_name = parsed_service.get("class_name", "TargetService")
+        print(f"🧩 [METHOD CHUNKING]: Processing {len(methods)} methods incrementally for `{class_name}`...")
+
+        # Write clean baseline scaffold
+        spec_file_path.write_text(initial_scaffold, encoding="utf-8")
+        test_cmd = profile.get_test_command(task.spec_file, service_file=task.service_file)
+
+        successful_methods = 0
+        for m in methods:
+            m_name = m["name"]
+            if m_name == class_name:
+                continue
+
+            print(f"   ↳ [CHUNK]: Generating tests for method `{m_name}`...")
+            method_prompt = (
+                f"No arquivo de teste `{task.spec_file}`, implemente e enriqueça APENAS o bloco describe('{m_name}', () => {{ ... }}) "
+                f"para testar o método `{m_name}` da classe `{class_name}` em `{task.service_file}`.\n\n"
+                f"Regras:\n"
+                f"1. Implemente testes unitários com asserções reais (Happy Path e Sad Path com rejects.toThrow()).\n"
+                f"2. NÃO altere outros blocos describe já existentes.\n"
+                f"3. NÃO altere o arquivo de produção `{task.service_file}`.\n"
+                f"4. NUNCA mocke a própria classe `{class_name}` (SUT). Mocke apenas as dependências injetadas.\n"
+                f"5. Se houver erro de tipagem com propriedades opcionais, use `as any`.\n"
+                f"{type_context}"
+            )
+
+            current_spec_before = spec_file_path.read_text(encoding="utf-8")
+
+            aider_cmd = [
+                "aider",
+                "--model", current_model,
+                "--read", str(service_file_path),
+                "--file", str(spec_file_path),
+                "--message", method_prompt,
+                "--yes",
+                "--no-detect-urls",
+                "--no-auto-commits",
+                "--no-show-model-warnings",
+                "--no-attribute-author",
+                "--no-attribute-committer",
+                "--map-tokens", "0",
+            ]
+            self.run_command(aider_cmd, cwd=project_path)
+            self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
+
+            # Verify this method slice
+            m_cmd = ["npx", "jest", "--config", "jest.config.json", "-t", m_name, task.spec_file]
+            m_code, m_out, m_err = self.run_command(m_cmd, cwd=project_path, timeout=60)
+
+            if m_code == 0:
+                print(f"   ✅ [CHUNK PASS]: Method `{m_name}` passed verification!")
+                successful_methods += 1
+            else:
+                m_error = (m_out + "\n" + m_err).strip()
+                ts_hints = extract_typescript_hints(m_error)
+                hint_str = ("\n" + "\n".join(ts_hints)) if ts_hints else ""
+                repair_prompt = (
+                    f"O bloco describe('{m_name}') falhou no Jest com o seguinte erro:\n"
+                    f"```\n{m_error[-1200:]}\n```"
+                    f"{hint_str}\n"
+                    f"Corrija APENAS o bloco describe('{m_name}') em `{task.spec_file}`."
+                )
+                aider_repair_cmd = [
+                    "aider", "--model", current_model,
+                    "--file", str(spec_file_path),
+                    "--message", repair_prompt,
+                    "--yes", "--no-detect-urls", "--no-auto-commits",
+                    "--no-show-model-warnings", "--map-tokens", "0",
+                ]
+                self.run_command(aider_repair_cmd, cwd=project_path)
+                self.run_command(["npx", "prettier", "--write", task.spec_file], cwd=project_path, timeout=15)
+
+                m_code2, _, _ = self.run_command(m_cmd, cwd=project_path, timeout=60)
+                if m_code2 == 0:
+                    print(f"   ✅ [CHUNK PASS (REPAIRED)]: Method `{m_name}` passed verification after repair!")
+                    successful_methods += 1
+                else:
+                    print(f"   ⚠️ [CHUNK SKIP]: Method `{m_name}` failed after repair. Reverting chunk to keep baseline intact...")
+                    spec_file_path.write_text(current_spec_before, encoding="utf-8")
+
+        # Final global verification
+        final_code, final_stdout, _ = self.run_command(test_cmd, cwd=project_path, timeout=60)
+        if final_code == 0 and successful_methods > 0:
+            cov_m = parse_coverage_final_json(project_path, task.service_file)
+            line_cov = cov_m.line_pct if cov_m else parse_line_coverage(final_stdout, task.service_file)
+            branch_cov = cov_m.branch_pct if cov_m else None
+            svc_text = service_file_path.read_text(encoding="utf-8") if service_file_path.exists() else ""
+            spec_text = spec_file_path.read_text(encoding="utf-8")
+            score = calculate_quality_confidence_score(
+                line_coverage=line_cov,
+                branch_coverage=branch_cov,
+                negative_analysis=analyze_negative_branches(svc_text, spec_text),
+                sut_violation=check_anti_sut_mocking(spec_text),
+                attempt=1,
+            )
+            self.last_quality_score = score
+            if score.passed:
+                print(f"🎉 [METHOD CHUNKING SUCCESS]: Completed large service `{task.service_file}` with Score {score.total_score:.1f}/100!")
+                if score.total_score >= 85.0:
+                    try:
+                        archive_golden_spec(
+                            spec_file=spec_file_path,
+                            module=task.module_name,
+                            quality_score=score.total_score,
+                            service_file=task.service_file,
+                            line_coverage=line_cov,
+                            branch_coverage=branch_cov,
+                            base_dir=self.golden_dataset_dir,
+                        )
+                    except Exception:
+                        pass
+                if self.allow_git_commit:
+                    commit_msg = f"test({task.module_name}): add unit tests for {Path(task.service_file).stem} via method chunking (Score: {score.total_score:.0f})"
+                    self.run_command(["git", "add", task.spec_file], cwd=project_path)
+                    self.run_command(["git", "commit", "-m", commit_msg], cwd=project_path)
+                return True
+        return False
+
     def execute_task(self, task: Task, queue_manager: QueueManager) -> bool:
         self.last_quality_score = None
         project_path = Path(task.project_path).resolve()
@@ -722,11 +868,13 @@ class TaskWorker:
         rehydrated = False
         quarantine_file = Path(__file__).resolve().parent.parent / "reports" / "quarantine" / task.module_name / spec_file_path.name
 
+        parsed_service = None
         if profile.name == "nestjs":
             try:
                 from pipeline.scaffolder import NestJSScaffolder
                 scaffolder = NestJSScaffolder()
                 service_code = service_file_path.read_text(encoding="utf-8")
+                parsed_service = scaffolder.parse_service(service_code)
                 initial_scaffold = scaffolder.generate_scaffold(service_file_path, service_code)
                 type_context = scaffolder.extract_imported_type_context(project_path, service_file_path, service_code)
 
@@ -866,6 +1014,29 @@ class TaskWorker:
 
         for attempt in range(1, task.max_attempts + 1):
             print(f"--- Attempt {attempt}/{task.max_attempts} for {task.id} ---")
+
+            # Large Service Strategy: Method-by-Method Chunking
+            if (
+                attempt >= 2
+                and parsed_service
+                and len(parsed_service.get("methods", [])) >= 4
+                and initial_scaffold
+            ):
+                print(f"🧩 [LARGE SERVICE DETECTED]: Activating autonomous Method-by-Method Chunking for {task.id}...")
+                chunk_ok = self.execute_method_chunking(
+                    task=task,
+                    project_path=project_path,
+                    service_file_path=service_file_path,
+                    spec_file_path=spec_file_path,
+                    initial_scaffold=initial_scaffold,
+                    parsed_service=parsed_service,
+                    type_context=type_context,
+                    current_model=current_model,
+                    profile=profile,
+                )
+                if chunk_ok:
+                    queue_manager.update_task_status(task.id, "completed", increment_attempt=True)
+                    return True
 
             # Self-healing safeguard: if spec file is truncated or corrupt (< 150 bytes), restore clean scaffold
             if initial_scaffold and (not spec_file_path.exists() or spec_file_path.stat().st_size < 150):
@@ -1187,9 +1358,12 @@ class TaskWorker:
                         print(f"Notice: Schema injection extraction skipped ({e})")
 
                 schema_section = f"\n\n{schema_context}" if schema_context else ""
+                ts_hints = extract_typescript_hints(error_traceback)
+                ts_section = ("\n\n💡 CORREÇÕES OBRIGATÓRIAS DE TYPESCRIPT SUGERIDAS PELO COMPILADOR:\n" + "\n".join(f"- {h}" for h in ts_hints)) if ts_hints else ""
                 jest_instruction = (
                     f"O teste unitário em `{task.spec_file}` falhou com o seguinte erro:\n\n"
                     f"```\n{error_traceback[-1500:]}\n```"
+                    f"{ts_section}"
                     f"{schema_section}\n\n"
                     f"Por favor, ajuste EXCLUSIVAMENTE o arquivo `{task.spec_file}` para corrigir os mocks ou asserções e fazer todos os testes passarem. "
                     f"Use `as any` em objetos parciais de mock se houver erro TS2345/TS2339. "
