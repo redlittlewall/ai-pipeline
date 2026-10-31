@@ -48,7 +48,22 @@ class ProjectScanner:
         extension = "*.dart" if self.profile.name == "flutter" else "*.ts"
         for file_path in sorted(self.source_root.rglob(extension)):
             # Skip if it's already a test file
-            if "spec" in file_path.name.lower() or "test" in file_path.name.lower():
+            name_lower = file_path.name.lower()
+            if (
+                ".spec." in name_lower
+                or ".test." in name_lower
+                or name_lower.endswith(".spec.ts")
+                or name_lower.endswith(".test.ts")
+                or name_lower.endswith(".spec.dart")
+                or name_lower.endswith(".test.dart")
+                or name_lower.startswith("test_")
+                or name_lower.startswith("spec_")
+                or "__tests__" in str(file_path).lower()
+            ):
+                continue
+
+            # Skip deprecated, seed, and fixture paths
+            if any(part.lower() in ["seeds", "seed", "fixtures"] or "deprecated" in part.lower() for part in file_path.parts):
                 continue
 
             if "all" in active_layers:
