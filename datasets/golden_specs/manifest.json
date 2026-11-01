@@ -1219,8 +1219,138 @@
       "branch_coverage": 100.0,
       "archived_at": "2026-10-31T17:18:40.098704+00:00",
       "sha256": "67b5dab0933d1e7afa8b2a431c8d4aaf67aa186df25b297ca22685a1a8927536"
+    },
+    "address/ViewAddressService.spec.ts": {
+      "spec_file": "address/ViewAddressService.spec.ts",
+      "module": "address",
+      "service_file": "src/modules/address/ViewAddressService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T03:06:15.044696+00:00",
+      "sha256": "e5e72ebf681d5b361ff47d86587fdb84f8b89f48290173d1a394508c6c87649d"
+    },
+    "avatar/AvatarService.spec.ts": {
+      "spec_file": "avatar/AvatarService.spec.ts",
+      "module": "avatar",
+      "service_file": "src/modules/avatar/AvatarService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 85.71,
+      "archived_at": "2026-11-01T03:09:53.600652+00:00",
+      "sha256": "e1069d52095442eda05dfc304cf7ca3c5bb8b95df35f4bc0aa29ce761285f84f"
+    },
+    "budget/CreateStripeTransferService.spec.ts": {
+      "spec_file": "budget/CreateStripeTransferService.spec.ts",
+      "module": "budget",
+      "service_file": "src/modules/budget/CreateStripeTransferService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T03:11:27.272551+00:00",
+      "sha256": "60d32d6630eada0cce809c66ea10ac18815307e476b1d367bf3aa070c42b1d68"
+    },
+    "emailsender/EmailComposerService.spec.ts": {
+      "spec_file": "emailsender/EmailComposerService.spec.ts",
+      "module": "emailsender",
+      "service_file": "src/modules/emailSender/composer/EmailComposerService.ts",
+      "quality_score": 92.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 88.89,
+      "archived_at": "2026-11-01T03:12:36.166519+00:00",
+      "sha256": "4292ab6a12d40f22306b0e46b5779afcddf0253730f41b8094edf1b27049ecc4"
+    },
+    "jobs/BankService.spec.ts": {
+      "spec_file": "jobs/BankService.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/BankService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T05:06:27.353514+00:00",
+      "sha256": "8d0392bdd4ba120a5b0106fd37a0b269a7a70b03ae7399ca8f77f348784098f0"
+    },
+    "jobs/DeleteOldMediaService.spec.ts": {
+      "spec_file": "jobs/DeleteOldMediaService.spec.ts",
+      "module": "jobs",
+      "service_file": "src/modules/jobs/media/DeleteOldMediaService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T05:53:19.586370+00:00",
+      "sha256": "07c33d2c8f7784c0e84d6e7a890ebeab685291e856864320af98889350aea943"
+    },
+    "payment/CreateStriepeAccount.service.spec.ts": {
+      "spec_file": "payment/CreateStriepeAccount.service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/actions/CreateStriepeAccount.service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 92.86,
+      "archived_at": "2026-11-01T05:55:33.099955+00:00",
+      "sha256": "8f7b1d8610cb8599859c0f74f8168ffce8dc27e82c7fa1c99649132dac6d9531"
+    },
+    "payment/BoletoPaymentService.spec.ts": {
+      "spec_file": "payment/BoletoPaymentService.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/BoletoPaymentService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T06:12:24.234436+00:00",
+      "sha256": "1f4bd7ff104259d6b329c726ea59e5ac32df47b46a1f4dfddb57dcc647d8fe8c"
+    },
+    "payment/PixPaymentService.spec.ts": {
+      "spec_file": "payment/PixPaymentService.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/PixPaymentService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 60.0,
+      "archived_at": "2026-11-01T06:31:28.533078+00:00",
+      "sha256": "dbf9250c000804a804dbb7ec2dae5115acc6766d10397c36c0be34ab379fe7f5"
+    },
+    "payment/PixQrCodeService.spec.ts": {
+      "spec_file": "payment/PixQrCodeService.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/PixQrCodeService.ts",
+      "quality_score": 95.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T09:08:40.114717+00:00",
+      "sha256": "0e4cc2d0dbde6aa46794430a27e92d51c91523fd9b417e1a74576d2e4b8afb84"
+    },
+    "payment/StripeService.spec.ts": {
+      "spec_file": "payment/StripeService.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/StripeService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 75.0,
+      "archived_at": "2026-11-01T09:11:36.532270+00:00",
+      "sha256": "406f5793bcc35e648dd017cbd459298eb1d961169fbacbc1482b6793f6017490"
+    },
+    "payment/UpdateStripePersonInCompanyDocument.Service.spec.ts": {
+      "spec_file": "payment/UpdateStripePersonInCompanyDocument.Service.spec.ts",
+      "module": "payment",
+      "service_file": "src/modules/payment/stripe/UpdateStripePersonInCompanyDocument.Service.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 100.0,
+      "archived_at": "2026-11-01T09:41:13.236698+00:00",
+      "sha256": "f5fe852514d16fe067f33b3bbe1719804065e581053aa1b497c0cd9620f9fd03"
+    },
+    "users/DeleteUserService.spec.ts": {
+      "spec_file": "users/DeleteUserService.spec.ts",
+      "module": "users",
+      "service_file": "src/modules/users/DeleteUserService.ts",
+      "quality_score": 100.0,
+      "line_coverage": 100.0,
+      "branch_coverage": 83.33,
+      "archived_at": "2026-11-01T09:43:36.830675+00:00",
+      "sha256": "53030353eb5c915516c2a900d037da02e9598f2636e54b49a2840b72d9aa82e0"
     }
   },
-  "updated_at": "2026-10-31T17:18:40.098817+00:00",
-  "total_count": 122
+  "updated_at": "2026-11-01T09:43:36.830780+00:00",
+  "total_count": 135
 }
